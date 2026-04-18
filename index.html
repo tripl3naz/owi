@@ -1,464 +1,333 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  LayoutDashboard, 
-  BarChart3, 
-  PlusCircle, 
-  Search, 
-  TrendingUp, 
-  MapPin, 
-  AlertTriangle,
-  Send,
-  Loader2,
-  CheckCircle2,
-  Leaf,
-  Recycle
-} from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  LineChart, 
-  Line,
-  Cell,
-  Legend
-} from 'recharts';
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWI - One Waste Indonesia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .batik-pattern { background-color: #065f46; background-image: url("https://www.transparenttextures.com/patterns/batik-fabric.png"); }
+        .glass-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(8px); border: 1px solid #e2e8f0; }
+        .tab-active { border-bottom: 3px solid #0369a1; color: #0369a1; }
+        .bg-klhk-blue { background-color: #0369a1; }
+        .bg-klhk-green { background-color: #059669; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); z-index: 50; place-items: center; }
+        .chart-container-scroll { overflow-y: auto; max-height: 500px; }
+        input:focus, select:focus { border-color: #0369a1 !important; box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen">
 
-/**
- * KONFIGURASI BACKEND (Google Apps Script)
- * PENTING: Jika error "Failed to fetch" berlanjut:
- * 1. Pastikan di Google Apps Script: Deploy > New Deployment > Web App.
- * 2. Set "Execute as" ke "Me".
- * 3. Set "Who has access" ke "Anyone". (WAJIB)
- */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5ts4yjIxxsrUKnsvmwNDUdTGzPRcqCuh_pTTPiwyYUmux4RMkjZgwiU1KWNNrHIxEnQ/exec"; 
-
-const PROVINSI_LIST = [
-  "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau", "Jambi", 
-  "Bengkulu", "Sumatera Selatan", "Kepulauan Bangka Belitung", "Lampung", 
-  "DKI Jakarta", "Jawa Barat", "Banten", "Jawa Tengah", "DI Yogyakarta", "Jawa Timur", 
-  "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Kalimantan Barat", 
-  "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", 
-  "Sulawesi Utara", "Gorontalo", "Sulawesi Tengah", "Sulawesi Barat", "Sulawesi Selatan", 
-  "Sulawesi Tenggara", "Maluku", "Maluku Utara", "Papua", "Papua Barat", 
-  "Papua Tengah", "Papua Pegunungan", "Papua Selatan", "Papua Barat Daya"
-];
-
-const App = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [wasteData, setWasteData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-
-  const [formData, setFormData] = useState({
-    namaPerusahaan: '',
-    nib: '',
-    kategori: 'Organik',
-    jenis: 'Non-B3',
-    berat: '',
-    lokasi: 'DKI Jakarta'
-  });
-
-  // 1. FUNGSI AMBIL DATA DENGAN ERROR HANDLING TINGKAT LANJUT
-  const fetchData = async () => {
-    if (!SCRIPT_URL || SCRIPT_URL.includes("exec") === false) {
-      setConnectionStatus('local');
-      return;
-    }
-
-    try {
-      // Menggunakan fetch dengan cache control untuk menghindari data lama
-      const response = await fetch(`${SCRIPT_URL}?t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        redirect: 'follow' // Sangat penting untuk Google Apps Script
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setWasteData(data);
-        setConnectionStatus('connected');
-      } else {
-        throw new Error("Data format is not an array");
-      }
-    } catch (error) {
-      console.error("Fetch Error:", error);
-      setConnectionStatus('error');
-      
-      // Jangan timpa data lama jika fetch gagal, kecuali jika state masih kosong
-      if (wasteData.length === 0) {
-        setWasteData([
-          { id: 'd1', namaPerusahaan: "PT Semesta Hijau (Demo)", nib: "1234567890123", kategori: "Organik", jenis: "Non-B3", berat: 1500, lokasi: "Jawa Barat", tanggal: new Date().toISOString() },
-          { id: 'd2', namaPerusahaan: "CV Solusi Alam (Demo)", nib: "9876543210987", kategori: "Anorganik", jenis: "B3", berat: 450, lokasi: "DKI Jakarta", tanggal: new Date().toISOString() }
-        ]);
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    // Interval update dikurangi agar tidak membebani limit Google Apps Script gratis
-    const interval = setInterval(fetchData, 60000); 
-    return () => clearInterval(interval);
-  }, []);
-
-  // 2. LOGIK STATISTIK
-  const stats = useMemo(() => {
-    const totalBerat = wasteData.reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
-    const beratOrganik = wasteData.filter(d => d.kategori === 'Organik').reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
-    const beratAnorganik = wasteData.filter(d => d.kategori === 'Anorganik').reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
-    
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const monthlySummary = monthNames.map((name, index) => {
-      const filtered = wasteData.filter(d => {
-        const dDate = new Date(d.tanggal);
-        return !isNaN(dDate) && dDate.getMonth() === index;
-      });
-      return {
-        name,
-        organik: filtered.filter(f => f.kategori === 'Organik').reduce((a, b) => a + Number(b.berat), 0),
-        anorganik: filtered.filter(f => f.kategori === 'Anorganik').reduce((a, b) => a + Number(b.berat), 0),
-      };
-    }).filter(m => m.organik > 0 || m.anorganik > 0);
-
-    const provRanking = PROVINSI_LIST.map(p => ({
-      name: p,
-      total: wasteData.filter(d => d.lokasi === p).reduce((acc, curr) => acc + Number(curr.berat), 0)
-    }))
-    .filter(p => p.total > 0)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 10);
-
-    return { totalBerat, beratOrganik, beratAnorganik, monthlySummary, provRanking };
-  }, [wasteData]);
-
-  // 3. KIRIM DATA
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    const payload = {
-      ...formData,
-      berat: Number(formData.berat),
-      tanggal: new Date().toISOString()
-    };
-
-    try {
-      if (SCRIPT_URL) {
-        // Gunakan no-cors untuk pengiriman ke Apps Script guna menghindari masalah Preflight
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        setNotification({ msg: 'Laporan berhasil diunggah ke cloud', type: 'success' });
-        // Tunggu sebentar sebelum refresh agar server Google sempat memproses
-        setTimeout(fetchData, 2000);
-      } else {
-        setWasteData(prev => [payload, ...prev]);
-        setNotification({ msg: 'Berhasil disimpan (Mode Lokal)', type: 'success' });
-      }
-    } catch (err) {
-      setNotification({ msg: 'Gagal mengirim data ke server', type: 'error' });
-    } finally {
-      setIsLoading(false);
-      setActiveTab('bursa');
-      setFormData({ namaPerusahaan: '', nib: '', kategori: 'Organik', jenis: 'Non-B3', berat: '', lokasi: 'DKI Jakarta' });
-      setTimeout(() => setNotification(null), 4000);
-    }
-  };
-
-  const filteredData = wasteData.filter(item => 
-    (item.namaPerusahaan || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.lokasi || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-sans text-slate-900">
-      {/* Header / Nav */}
-      <nav className="border-b border-slate-100 px-6 h-20 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl z-30">
-        <div className="flex items-center gap-8">
-          <div className="flex flex-col select-none">
-            <span className="font-black text-2xl tracking-tighter text-[#2D5A27]">OWI</span>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] -mt-1">One Waste</span>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-1 p-1 bg-slate-100 rounded-full">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'form', label: 'Registrasi', icon: PlusCircle },
-              { id: 'bursa', label: 'Bursa', icon: BarChart3 },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
-                  activeTab === tab.id 
-                  ? 'bg-white text-[#2D5A27] shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <tab.icon size={14} />
-                {tab.label.toUpperCase()}
-              </button>
-            ))}
-          </div>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="bg-white p-6 rounded-2xl flex items-center gap-4 shadow-xl">
+            <div class="animate-spin rounded-full h-8 w-8 border-4 border-emerald-600 border-t-transparent"></div>
+            <span class="font-bold text-slate-800">Sinkronisasi OWI ke Cloud...</span>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="text-right border-l pl-6 border-slate-200">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Server Stats</p>
-            <div className="flex items-center gap-2 justify-end">
-               <span className={`w-2 h-2 rounded-full ${
-                 connectionStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 
-                 connectionStatus === 'error' ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-bounce'
-               }`}></span>
-               <p className={`text-[11px] font-bold uppercase ${
-                 connectionStatus === 'connected' ? 'text-green-600' : 
-                 connectionStatus === 'error' ? 'text-red-500' : 'text-amber-600'
-               }`}>
-                 {connectionStatus === 'connected' ? 'Online' : 
-                  connectionStatus === 'error' ? 'Offline/CORS' : 'Linking...'}
-               </p>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto w-full p-6 lg:p-10 flex-1">
-        {/* Notifikasi Toast */}
-        {notification && (
-          <div className={`fixed bottom-8 right-8 z-50 flex items-center gap-3 p-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-10 ${
-            notification.type === 'success' ? 'bg-white border-green-100 text-slate-900' : 'bg-red-600 text-white border-transparent'
-          }`}>
-            <div className={`p-2 rounded-xl ${notification.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-white/20'}`}>
-              <CheckCircle2 size={18} />
-            </div>
-            <span className="text-sm font-bold">{notification.msg}</span>
-          </div>
-        )}
-
-        {/* Dashboard View */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-10 animate-in fade-in duration-500">
-            <header>
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Ecosystem Monitoring</h1>
-              <p className="text-slate-500 font-medium">Visualisasi data limbah terkumpul di tingkat nasional.</p>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-8 rounded-[2rem] bg-[#2D5A27] text-white shadow-xl shadow-green-100 relative overflow-hidden group">
-                <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform" />
-                <TrendingUp className="mb-4 opacity-50" size={32} />
-                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Total Akumulasi</p>
-                <h2 className="text-4xl font-black mt-1">{(stats.totalBerat || 0).toLocaleString()}<span className="text-lg font-medium ml-2 opacity-60">kg</span></h2>
-              </div>
-
-              <div className="p-8 rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:border-green-100 transition-colors">
-                <Leaf className="mb-4 text-[#2D5A27]" size={32} />
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limbah Organik</p>
-                <h2 className="text-4xl font-black mt-1 text-slate-900">{(stats.beratOrganik || 0).toLocaleString()}<span className="text-sm font-medium ml-2 text-slate-400">kg</span></h2>
-              </div>
-
-              <div className="p-8 rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:border-blue-100 transition-colors">
-                <Recycle className="mb-4 text-[#006699]" size={32} />
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limbah Anorganik</p>
-                <h2 className="text-4xl font-black mt-1 text-slate-900">{(stats.beratAnorganik || 0).toLocaleString()}<span className="text-sm font-medium ml-2 text-slate-400">kg</span></h2>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-lg font-black text-slate-800 italic">Timeline Sirkularitas</h3>
-                  <div className="flex gap-4">
-                     <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#2D5A27]"></span><span className="text-[10px] font-bold text-slate-400">ORGANIK</span></div>
-                     <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#006699]"></span><span className="text-[10px] font-bold text-slate-400">ANORGANIK</span></div>
-                  </div>
-                </div>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer>
-                    <LineChart data={stats.monthlySummary}>
-                      <CartesianGrid stroke="#f1f5f9" vertical={false} strokeDasharray="3 3" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
-                      <Tooltip 
-                        contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', fontWeight: 'bold'}} 
-                        cursor={{stroke: '#e2e8f0', strokeWidth: 2}}
-                      />
-                      <Line type="monotone" name="Organik" dataKey="organik" stroke="#2D5A27" strokeWidth={4} dot={{r: 4, strokeWidth: 2, fill: '#fff'}} activeDot={{r: 6}} />
-                      <Line type="monotone" name="Anorganik" dataKey="anorganik" stroke="#006699" strokeWidth={4} dot={{r: 4, strokeWidth: 2, fill: '#fff'}} activeDot={{r: 6}} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <h3 className="text-lg font-black text-slate-800 mb-8 italic">Peta Konsentrasi Wilayah</h3>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer>
-                    <BarChart data={stats.provRanking} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={110} fontSize={10} fontWeight={800} />
-                      <Tooltip cursor={{fill: 'transparent'}} />
-                      <Bar dataKey="total" radius={[0, 20, 20, 0]} barSize={18}>
-                        {stats.provRanking.map((_, i) => (
-                          <Cell key={i} fill={i === 0 ? '#2D5A27' : '#e2e8f0'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Form View */}
-        {activeTab === 'form' && (
-          <div className="max-w-2xl mx-auto animate-in zoom-in-95 duration-300">
-            <header className="mb-10 text-center">
-              <h1 className="text-4xl font-black text-slate-900 italic">Submission Center</h1>
-              <p className="text-slate-500 font-medium">Input data limbah korporat secara real-time.</p>
-            </header>
-
-            <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Nama Perusahaan</label>
-                  <input required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none transition-all font-bold" value={formData.namaPerusahaan} onChange={e => setFormData({...formData, namaPerusahaan: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">NIB</label>
-                  <input required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none transition-all font-bold" value={formData.nib} onChange={e => setFormData({...formData, nib: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Kategori Utama</label>
-                  <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold" value={formData.kategori} onChange={e => setFormData({...formData, kategori: e.target.value})}>
-                    <option>Organik</option>
-                    <option>Anorganik</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Massa (Kg)</label>
-                  <input type="number" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold tabular-nums" value={formData.berat} onChange={e => setFormData({...formData, berat: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Lokasi Provinsi</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold" value={formData.lokasi} onChange={e => setFormData({...formData, lokasi: e.target.value})}>
-                  {PROVINSI_LIST.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sifat Material:</p>
-                 <label className="text-sm font-bold flex items-center gap-3 cursor-pointer"><input type="radio" className="w-5 h-5 accent-[#006699]" checked={formData.jenis === 'Non-B3'} onChange={() => setFormData({...formData, jenis: 'Non-B3'})}/> Non-B3</label>
-                 <label className="text-sm font-bold flex items-center gap-3 cursor-pointer text-red-600"><input type="radio" className="w-5 h-5 accent-red-600" checked={formData.jenis === 'B3'} onChange={() => setFormData({...formData, jenis: 'B3'})}/> B3</label>
-              </div>
-
-              <button disabled={isLoading} className="w-full py-5 bg-[#2D5A27] text-white rounded-[1.5rem] font-black text-lg hover:shadow-2xl hover:shadow-green-200 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
-                {isLoading ? <Loader2 className="animate-spin" size={24}/> : <Send size={20}/>}
-                TRANSMIT DATA
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Bursa View */}
-        {activeTab === 'bursa' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-500">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight italic">Resource Exchange</h1>
-                <p className="text-slate-500 font-medium">Data inventori limbah sirkular aktif.</p>
-              </div>
-              <div className="relative w-full md:w-96 group">
-                <Search size={18} className="absolute left-5 top-5 text-slate-400 group-focus-within:text-[#2D5A27] transition-colors" />
-                <input className="w-full pl-14 pr-8 py-5 bg-white border border-slate-100 rounded-3xl text-sm font-bold outline-none shadow-sm focus:ring-4 focus:ring-[#2D5A27]/5 focus:border-[#2D5A27]/20 transition-all" placeholder="Cari entitas atau provinsi..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-              </div>
-            </header>
-
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-xl shadow-slate-100">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50/50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-100">
-                      <th className="px-10 py-6 text-left">Nama Perusahaan / NIB</th>
-                      <th className="px-10 py-6 text-left">Region</th>
-                      <th className="px-10 py-6 text-left">Klasifikasi</th>
-                      <th className="px-10 py-6 text-right">Massa Bersih</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {filteredData.length > 0 ? filteredData.map((item, idx) => (
-                      <tr key={idx} className="group hover:bg-green-50/30 transition-colors">
-                        <td className="px-10 py-6">
-                          <p className="font-black text-slate-900 group-hover:text-[#2D5A27] transition-colors uppercase tracking-tight">{item.namaPerusahaan}</p>
-                          <p className="text-[10px] font-bold text-slate-400 font-mono italic">{item.nib}</p>
-                        </td>
-                        <td className="px-10 py-6 font-extrabold text-[11px] text-slate-500 uppercase"><MapPin size={12} className="inline mr-2 text-[#006699]"/> {item.lokasi}</td>
-                        <td className="px-10 py-6">
-                          <div className="flex items-center gap-2">
-                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${item.kategori === 'Organik' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{item.kategori}</span>
-                             {item.jenis === 'B3' && <span className="px-3 py-1 bg-red-50 text-red-500 rounded-lg text-[9px] font-black border border-red-100">B3</span>}
-                          </div>
-                        </td>
-                        <td className="px-10 py-6 text-right font-black text-[#2D5A27] text-lg tabular-nums">{(Number(item.berat) || 0).toLocaleString()} <span className="text-[10px] text-slate-400 ml-1">KG</span></td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="4" className="px-10 py-24 text-center">
-                           <div className="flex flex-col items-center gap-4">
-                             <Search size={48} className="text-slate-100" />
-                             <p className="text-slate-400 font-bold italic">No records matching your search criteria</p>
-                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Mini Footer */}
-      <footer className="p-10 bg-white border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex flex-col">
-          <span className="font-black text-xl text-[#2D5A27] italic tracking-tighter">OWI INDONESIA</span>
-          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.4em] ml-1">Circular Intelligence</span>
-        </div>
-        <div className="flex items-center gap-8">
-           <div className="text-right">
-              <p className="text-[9px] font-black text-slate-300 uppercase">Version</p>
-              <p className="text-[11px] font-bold text-slate-400 italic">2.5.2 Stable-Sync</p>
-           </div>
-           <div className="text-right border-l pl-8 border-slate-100">
-              <p className="text-[9px] font-black text-slate-300 uppercase">Status</p>
-              <p className="text-[11px] font-bold text-[#2D5A27]">Active & Encrypted</p>
-           </div>
-        </div>
-      </footer>
     </div>
-  );
-};
 
-export default App;
+    <!-- Top Bar -->
+    <div class="bg-klhk-blue py-2 px-4 text-white text-[10px] font-bold tracking-widest uppercase flex justify-between items-center shadow-md">
+        <span>One Waste Indonesia • Portal Integrasi Limbah Nasional</span>
+        <span>INDONESIA HIJAU DAN BERSIH</span>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-white rounded-xl shadow-md border-b-4 border-emerald-600">
+                        <span class="text-3xl font-black text-emerald-700">OWI</span>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-900 tracking-tight uppercase">ONE WASTE <span class="text-emerald-600">INDONESIA</span></h1>
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Indonesia Waste Bank Integrated System</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex space-x-8 border-b border-slate-200">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="pb-3 font-bold text-sm transition-all tab-active">Dashboard Nasional</button>
+                <button onclick="switchTab('input')" id="tab-input" class="pb-3 font-bold text-sm text-slate-400 hover:text-emerald-700 transition-all">Pendaftaran Limbah</button>
+                <button onclick="switchTab('exchange')" id="tab-exchange" class="pb-3 font-bold text-sm text-slate-400 hover:text-emerald-700 transition-all">Bursa Limbah</button>
+            </nav>
+        </header>
+
+        <!-- View: Dashboard -->
+        <div id="view-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-sky-600">
+                    <p class="text-slate-500 text-[10px] font-bold uppercase mb-2 tracking-wider">Limbah Tersedia</p>
+                    <div class="flex items-center justify-around py-2">
+                        <div class="text-center">
+                            <span id="statOrgCount" class="block text-2xl font-black text-emerald-600">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Organik</span>
+                        </div>
+                        <div class="text-center">
+                            <span id="statAnorgCount" class="block text-2xl font-black text-sky-700">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Anorganik</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-emerald-600">
+                    <p class="text-slate-500 text-[10px] font-bold uppercase mb-2 tracking-wider">Total Volume (kg)</p>
+                    <h3 id="statTotalBerat" class="text-3xl font-black text-emerald-700">0 kg</h3>
+                </div>
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-blue-800 batik-pattern bg-klhk-green">
+                    <p class="text-emerald-50 text-[10px] font-bold uppercase mb-2 tracking-wider">Cakupan Wilayah</p>
+                    <h3 class="text-xl font-black text-white uppercase tracking-tight">38 PROVINSI</h3>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div class="glass-card p-6 rounded-2xl shadow-md h-[350px]">
+                    <h3 class="font-bold text-slate-800 mb-4">Tren Akumulasi Limbah</h3>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <div class="glass-card p-6 rounded-2xl shadow-md h-[400px]">
+                    <h3 class="font-bold text-slate-800 mb-4">Statistik Limbah per Provinsi (Ton)</h3>
+                    <canvas id="provinceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Input -->
+        <div id="view-input" class="hidden max-w-2xl mx-auto space-y-6">
+            <div class="glass-card p-8 rounded-3xl shadow-2xl border-t-8 border-t-emerald-700">
+                <div class="mb-8 text-center">
+                    <h2 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">Pendaftaran Data OWI</h2>
+                    <p class="text-slate-500 text-sm italic font-medium tracking-tight">Lapor Mandiri Limbah Industri (ISO 14001 Standards)</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Perusahaan</label>
+                            <input type="text" id="companyInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="PT. Inovasi">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">NIB</label>
+                            <input type="text" id="nibInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="13 Digit">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori</label>
+                            <select id="categoryInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                                <option value="Organik">Organik</option>
+                                <option value="Anorganik">Anorganik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status B3</label>
+                            <select id="b3Input" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                                <option value="Non-B3">Non-B3</option>
+                                <option value="B3">B3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Jenis Limbah</label>
+                            <input type="text" id="wasteNameInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="Plastik, Kertas, dsb">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Berat (Kg)</label>
+                            <input type="number" id="weightInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Lokasi (38 Provinsi)</label>
+                        <select id="locationInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                            <option value="">-- Pilih Wilayah --</option>
+                            <optgroup label="Sumatra">
+                                <option value="Aceh">Aceh</option>
+                                <option value="Sumatra Utara">Sumatra Utara</option>
+                                <option value="Sumatra Barat">Sumatra Barat</option>
+                                <option value="Riau">Riau</option>
+                                <option value="Kepulauan Riau">Kepulauan Riau</option>
+                                <option value="Jambi">Jambi</option>
+                                <option value="Bengkulu">Bengkulu</option>
+                                <option value="Sumatra Selatan">Sumatra Selatan</option>
+                                <option value="Kepulauan Bangka Belitung">Kepulauan Bangka Belitung</option>
+                                <option value="Lampung">Lampung</option>
+                            </optgroup>
+                            <optgroup label="Jawa">
+                                <option value="Banten">Banten</option>
+                                <option value="DKI Jakarta">DKI Jakarta</option>
+                                <option value="Jawa Barat">Jawa Barat</option>
+                                <option value="Jawa Tengah">Jawa Tengah</option>
+                                <option value="DI Yogyakarta">DI Yogyakarta</option>
+                                <option value="Jawa Timur">Jawa Timur</option>
+                            </optgroup>
+                            <optgroup label="Bali & Nusa Tenggara">
+                                <option value="Bali">Bali</option>
+                                <option value="Nusa Tenggara Barat">Nusa Tenggara Barat</option>
+                                <option value="Nusa Tenggara Timur">Nusa Tenggara Timur</option>
+                            </optgroup>
+                            <optgroup label="Kalimantan">
+                                <option value="Kalimantan Barat">Kalimantan Barat</option>
+                                <option value="Kalimantan Tengah">Kalimantan Tengah</option>
+                                <option value="Kalimantan Selatan">Kalimantan Selatan</option>
+                                <option value="Kalimantan Timur">Kalimantan Timur</option>
+                                <option value="Kalimantan Utara">Kalimantan Utara</option>
+                            </optgroup>
+                            <optgroup label="Sulawesi">
+                                <option value="Sulawesi Utara">Sulawesi Utara</option>
+                                <option value="Gorontalo">Gorontalo</option>
+                                <option value="Sulawesi Tengah">Sulawesi Tengah</option>
+                                <option value="Sulawesi Barat">Sulawesi Barat</option>
+                                <option value="Sulawesi Selatan">Sulawesi Selatan</option>
+                                <option value="Sulawesi Tenggara">Sulawesi Tenggara</option>
+                            </optgroup>
+                            <optgroup label="Maluku & Papua">
+                                <option value="Maluku">Maluku</option>
+                                <option value="Maluku Utara">Maluku Utara</option>
+                                <option value="Papua">Papua</option>
+                                <option value="Papua Barat">Papua Barat</option>
+                                <option value="Papua Selatan">Papua Selatan</option>
+                                <option value="Papua Tengah">Papua Tengah</option>
+                                <option value="Papua Pegunungan">Papua Pegunungan</option>
+                                <option value="Papua Barat Daya">Papua Barat Daya</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <button onclick="saveRecordDirectly()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-4 rounded-xl shadow-xl mt-4 tracking-widest uppercase text-sm batik-pattern">Kirim Laporan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Exchange -->
+        <div id="view-exchange" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </div>
+
+    <script>
+        // URL Google Apps Script Exec yang telah diperbarui
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx1nj3dnCtp8dm7KM53Zs20MXF7Lf56ShMZM-DJaqq1GREY1NnX265Rq9rcyMz6pq5H2g/exec"; 
+
+        let records = [];
+        let charts = {};
+
+        window.onload = () => { initCharts(); updateDashboard(); };
+
+        function switchTab(tab) {
+            ['dashboard', 'input', 'exchange'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`tab-${v}`).classList.remove('tab-active');
+            });
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            if(tab === 'exchange') updateExchange();
+        }
+
+        async function saveRecordDirectly() {
+            const data = {
+                id: Date.now(),
+                tanggal: new Date().toISOString(),
+                nama_perusahaan: document.getElementById('companyInput').value,
+                nib: document.getElementById('nibInput').value,
+                kategori: document.getElementById('categoryInput').value,
+                status_b3: document.getElementById('b3Input').value,
+                jenis_limbah: document.getElementById('wasteNameInput').value,
+                berat: parseFloat(document.getElementById('weightInput').value),
+                lokasi: document.getElementById('locationInput').value
+            };
+
+            if (!data.nama_perusahaan || !data.jenis_limbah || isNaN(data.berat) || !data.lokasi) {
+                alert("Harap lengkapi semua data pendaftaran!"); return;
+            }
+
+            document.getElementById('loadingOverlay').style.display = 'grid';
+            try {
+                // Update memori lokal untuk UI instan
+                records.unshift(data);
+                
+                // Kirim ke Google Sheets
+                await fetch(SCRIPT_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data) 
+                });
+
+                alert("Laporan berhasil tersinkronkan ke Database OWI!");
+                
+                // Reset form
+                document.getElementById('wasteNameInput').value = "";
+                document.getElementById('weightInput').value = "";
+                
+                switchTab('dashboard');
+                updateDashboard();
+            } catch (e) { 
+                console.error(e);
+                alert("Terjadi kesalahan teknis. Pastikan Script sudah di-deploy dengan akses 'Anyone'."); 
+            }
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
+        }
+
+        function updateDashboard() {
+            document.getElementById('statOrgCount').textContent = records.filter(r => r.kategori === 'Organik').length;
+            document.getElementById('statAnorgCount').textContent = records.filter(r => r.kategori === 'Anorganik').length;
+            document.getElementById('statTotalBerat').textContent = records.reduce((a, b) => a + (b.berat || 0), 0).toLocaleString('id-ID') + " kg";
+            updateCharts();
+        }
+
+        function initCharts() {
+            Chart.defaults.color = '#1e293b';
+            charts.monthly = new Chart(document.getElementById('monthlyChart'), {
+                type: 'line',
+                data: { 
+                    labels: ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], 
+                    datasets: [{ label: 'Akumulasi Limbah (kg)', data: Array(12).fill(0), borderColor: '#059669', backgroundColor: 'rgba(5, 150, 105, 0.1)', fill: true, tension: 0.3 }] 
+                },
+                options: { maintainAspectRatio: false }
+            });
+            charts.province = new Chart(document.getElementById('provinceChart'), {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Tonase per Wilayah', data: [], backgroundColor: '#0369a1', borderRadius: 5 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false }
+            });
+        }
+
+        function updateCharts() {
+            const monthlyData = Array(12).fill(0);
+            const provMap = {};
+            records.forEach(r => {
+                monthlyData[new Date(r.tanggal).getMonth()] += r.berat;
+                provMap[r.lokasi] = (provMap[r.lokasi] || 0) + (r.berat / 1000);
+            });
+            charts.monthly.data.datasets[0].data = monthlyData;
+            charts.monthly.update();
+            const sorted = Object.entries(provMap).sort((a,b) => b[1]-a[1]);
+            charts.province.data.labels = sorted.map(s => s[0]);
+            charts.province.data.datasets[0].data = sorted.map(s => s[1]);
+            charts.province.update();
+        }
+
+        function updateExchange() {
+            const container = document.getElementById('view-exchange');
+            if (records.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold italic">Belum ada data bursa nasional.</div>`;
+                return;
+            }
+            container.innerHTML = records.map(r => `
+                <div class="glass-card p-5 rounded-2xl shadow-md border-l-4 ${r.kategori === 'Organik' ? 'border-emerald-600' : 'border-sky-700'}">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-black text-slate-800 uppercase tracking-tight">${r.jenis_limbah}</h4>
+                        <span class="text-[9px] font-bold px-2 py-1 bg-slate-100 rounded">${r.status_b3}</span>
+                    </div>
+                    <p class="text-xs font-bold text-emerald-700">${r.nama_perusahaan}</p>
+                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">${r.lokasi}</p>
+                    <div class="mt-3 flex justify-between items-end">
+                        <div class="font-black text-2xl text-slate-900">${(r.berat/1000).toFixed(2)} <small class="text-xs">Ton</small></div>
+                        <div class="text-[9px] text-slate-300">${new Date(r.tanggal).toLocaleDateString('id-ID')}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
