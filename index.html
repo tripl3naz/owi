@@ -241,7 +241,8 @@
                     volume: parseFloat(item.volume),
                     location: item.lokasi,
                     date: item.tanggal,
-                    description: item.deskripsi || "-" // Menangani data lama tanpa deskripsi
+                    // Pastikan item.deskripsi sesuai dengan kunci JSON dari Apps Script
+                    description: item.deskripsi || item.Description || "-" 
                 }));
 
                 updateUI();
@@ -358,7 +359,7 @@
                         <div class="text-[10px] text-slate-400">NIB: ${item.nib}</div>
                     </td>
                     <td class="px-8 py-4">
-                        <div class="text-xs text-slate-600 max-w-xs truncate" title="${item.description}">
+                        <div class="text-xs text-slate-600 max-w-[200px] break-words" title="${item.description}">
                             ${item.description}
                         </div>
                     </td>
@@ -385,7 +386,7 @@
                 volume: parseFloat(document.getElementById('volume').value),
                 location: document.getElementById('location').value,
                 date: new Date().toLocaleDateString('id-ID'),
-                description: document.getElementById('description').value // Mengirim deskripsi
+                description: document.getElementById('description').value
             };
 
             try {
@@ -397,6 +398,7 @@
                     body: JSON.stringify(payload)
                 });
 
+                // Optimistic UI Update: Tambahkan deskripsi ke data lokal sebelum sinkronisasi ulang
                 wasteData.unshift(payload);
                 document.getElementById('successModal').classList.remove('hidden');
                 this.reset();
@@ -404,7 +406,7 @@
                 alert("Gagal mengirim data.");
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Kirim ke Google Sheets';
+                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> KIRIM';
                 updateUI();
             }
         });
