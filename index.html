@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWI - One Waste Indonesia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .batik-pattern { background-color: #065f46; background-image: url("https://www.transparenttextures.com/patterns/batik-fabric.png"); }
+        .glass-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(8px); border: 1px solid #e2e8f0; }
+        .tab-active { border-bottom: 3px solid #0369a1; color: #0369a1; }
+        .bg-klhk-blue { background-color: #0369a1; }
+        .bg-klhk-green { background-color: #059669; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); z-index: 50; place-items: center; }
+        .chart-container-scroll { overflow-y: auto; max-height: 500px; }
+        input:focus, select:focus { border-color: #0369a1 !important; box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="bg-white p-6 rounded-2xl flex items-center gap-4 shadow-xl">
+            <div class="animate-spin rounded-full h-8 w-8 border-4 border-emerald-600 border-t-transparent"></div>
+            <span class="font-bold text-slate-800">Sinkronisasi OWI ke Cloud...</span>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="bg-klhk-blue py-2 px-4 text-white text-[10px] font-bold tracking-widest uppercase flex justify-between items-center shadow-md">
+        <span>One Waste Indonesia • Portal Integrasi Limbah Nasional</span>
+        <span>INDONESIA HIJAU DAN BERSIH</span>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-white rounded-xl shadow-md border-b-4 border-emerald-600">
+                        <span class="text-3xl font-black text-emerald-700">OWI</span>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-900 tracking-tight uppercase">ONE WASTE <span class="text-emerald-600">INDONESIA</span></h1>
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Indonesia Waste Bank Integrated System</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex space-x-8 border-b border-slate-200">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="pb-3 font-bold text-sm transition-all tab-active">Dashboard Nasional</button>
+                <button onclick="switchTab('input')" id="tab-input" class="pb-3 font-bold text-sm text-slate-400 hover:text-emerald-700 transition-all">Pendaftaran Limbah</button>
+                <button onclick="switchTab('exchange')" id="tab-exchange" class="pb-3 font-bold text-sm text-slate-400 hover:text-emerald-700 transition-all">Bursa Limbah</button>
+            </nav>
+        </header>
+
+        <!-- View: Dashboard -->
+        <div id="view-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-sky-600">
+                    <p class="text-slate-500 text-[10px] font-bold uppercase mb-2 tracking-wider">Limbah Tersedia</p>
+                    <div class="flex items-center justify-around py-2">
+                        <div class="text-center">
+                            <span id="statOrgCount" class="block text-2xl font-black text-emerald-600">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Organik</span>
+                        </div>
+                        <div class="text-center">
+                            <span id="statAnorgCount" class="block text-2xl font-black text-sky-700">0</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Anorganik</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-emerald-600">
+                    <p class="text-slate-500 text-[10px] font-bold uppercase mb-2 tracking-wider">Total Volume (kg)</p>
+                    <h3 id="statTotalBerat" class="text-3xl font-black text-emerald-700">0 kg</h3>
+                </div>
+                <div class="glass-card p-5 rounded-2xl shadow-sm border-l-4 border-l-blue-800 batik-pattern bg-klhk-green">
+                    <p class="text-emerald-50 text-[10px] font-bold uppercase mb-2 tracking-wider">Cakupan Wilayah</p>
+                    <h3 class="text-xl font-black text-white uppercase tracking-tight">38 PROVINSI</h3>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div class="glass-card p-6 rounded-2xl shadow-md h-[350px]">
+                    <h3 class="font-bold text-slate-800 mb-4">Tren Akumulasi Limbah</h3>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <div class="glass-card p-6 rounded-2xl shadow-md h-[400px]">
+                    <h3 class="font-bold text-slate-800 mb-4">Statistik Limbah per Provinsi (Ton)</h3>
+                    <canvas id="provinceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Input -->
+        <div id="view-input" class="hidden max-w-2xl mx-auto space-y-6">
+            <div class="glass-card p-8 rounded-3xl shadow-2xl border-t-8 border-t-emerald-700">
+                <div class="mb-8 text-center">
+                    <h2 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">Pendaftaran Data OWI</h2>
+                    <p class="text-slate-500 text-sm italic font-medium tracking-tight">Lapor Mandiri Limbah Industri (ISO 14001 Standards)</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Perusahaan</label>
+                            <input type="text" id="companyInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="PT. Inovasi">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">NIB</label>
+                            <input type="text" id="nibInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="13 Digit">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori</label>
+                            <select id="categoryInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                                <option value="Organik">Organik</option>
+                                <option value="Anorganik">Anorganik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status B3</label>
+                            <select id="b3Input" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                                <option value="Non-B3">Non-B3</option>
+                                <option value="B3">B3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Jenis Limbah</label>
+                            <input type="text" id="wasteNameInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="Plastik, Kertas, dsb">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Berat (Kg)</label>
+                            <input type="number" id="weightInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold" placeholder="0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Lokasi (38 Provinsi)</label>
+                        <select id="locationInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
+                            <option value="">-- Pilih Wilayah --</option>
+                            <optgroup label="Sumatera">
+                                <option value="Aceh">Aceh</option>
+                                <option value="Sumatera Utara">Sumatera Utara</option>
+                                <option value="Sumatera Barat">Sumatera Barat</option>
+                                <option value="Riau">Riau</option>
+                                <option value="Kepulauan Riau">Kepulauan Riau</option>
+                                <option value="Jambi">Jambi</option>
+                                <option value="Bengkulu">Bengkulu</option>
+                                <option value="Sumatera Selatan">Sumatera Selatan</option>
+                                <option value="Kepulauan Bangka Belitung">Kepulauan Bangka Belitung</option>
+                                <option value="Lampung">Lampung</option>
+                            </optgroup>
+                            <optgroup label="Jawa">
+                                <option value="Banten">Banten</option>
+                                <option value="DKI Jakarta">DKI Jakarta</option>
+                                <option value="Jawa Barat">Jawa Barat</option>
+                                <option value="Jawa Tengah">Jawa Tengah</option>
+                                <option value="DI Yogyakarta">DI Yogyakarta</option>
+                                <option value="Jawa Timur">Jawa Timur</option>
+                            </optgroup>
+                            <optgroup label="Bali & Nusa Tenggara">
+                                <option value="Bali">Bali</option>
+                                <option value="Nusa Tenggara Barat">Nusa Tenggara Barat</option>
+                                <option value="Nusa Tenggara Timur">Nusa Tenggara Timur</option>
+                            </optgroup>
+                            <optgroup label="Kalimantan">
+                                <option value="Kalimantan Barat">Kalimantan Barat</option>
+                                <option value="Kalimantan Tengah">Kalimantan Tengah</option>
+                                <option value="Kalimantan Selatan">Kalimantan Selatan</option>
+                                <option value="Kalimantan Timur">Kalimantan Timur</option>
+                                <option value="Kalimantan Utara">Kalimantan Utara</option>
+                            </optgroup>
+                            <optgroup label="Sulawesi">
+                                <option value="Sulawesi Utara">Sulawesi Utara</option>
+                                <option value="Gorontalo">Gorontalo</option>
+                                <option value="Sulawesi Tengah">Sulawesi Tengah</option>
+                                <option value="Sulawesi Barat">Sulawesi Barat</option>
+                                <option value="Sulawesi Selatan">Sulawesi Selatan</option>
+                                <option value="Sulawesi Tenggara">Sulawesi Tenggara</option>
+                            </optgroup>
+                            <optgroup label="Maluku & Papua">
+                                <option value="Maluku">Maluku</option>
+                                <option value="Maluku Utara">Maluku Utara</option>
+                                <option value="Papua">Papua</option>
+                                <option value="Papua Barat">Papua Barat</option>
+                                <option value="Papua Selatan">Papua Selatan</option>
+                                <option value="Papua Tengah">Papua Tengah</option>
+                                <option value="Papua Pegunungan">Papua Pegunungan</option>
+                                <option value="Papua Barat Daya">Papua Barat Daya</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <button onclick="saveRecordDirectly()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-4 rounded-xl shadow-xl mt-4 tracking-widest uppercase text-sm batik-pattern">Kirim Laporan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Exchange -->
+        <div id="view-exchange" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </div>
+
+    <script>
+        // URL Google Apps Script Exec yang baru saja diperbarui
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwO50i_D-Ba_co3AmO6L3ykHKD6KeJ4_MmhlsN-9BVpBzIhgqEETXvKQYfOznuvT2N--g/exec"; 
+
+        let records = [];
+        let charts = {};
+
+        window.onload = () => { initCharts(); updateDashboard(); };
+
+        function switchTab(tab) {
+            ['dashboard', 'input', 'exchange'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`tab-${v}`).classList.remove('tab-active');
+            });
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            if(tab === 'exchange') updateExchange();
+        }
+
+        async function saveRecordDirectly() {
+            const data = {
+                id: Date.now(),
+                tanggal: new Date().toISOString(),
+                nama_perusahaan: document.getElementById('companyInput').value,
+                nib: document.getElementById('nibInput').value,
+                kategori: document.getElementById('categoryInput').value,
+                status_b3: document.getElementById('b3Input').value,
+                jenis_limbah: document.getElementById('wasteNameInput').value,
+                berat: parseFloat(document.getElementById('weightInput').value),
+                lokasi: document.getElementById('locationInput').value
+            };
+
+            if (!data.nama_perusahaan || !data.jenis_limbah || isNaN(data.berat) || !data.lokasi) {
+                alert("Harap lengkapi semua data pendaftaran!"); return;
+            }
+
+            document.getElementById('loadingOverlay').style.display = 'grid';
+            try {
+                // Update memori lokal untuk UI instan
+                records.unshift(data);
+                
+                // Kirim ke Google Sheets
+                await fetch(SCRIPT_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data) 
+                });
+
+                alert("Laporan berhasil tersinkronkan ke Database OWI!");
+                
+                // Reset form
+                document.getElementById('wasteNameInput').value = "";
+                document.getElementById('weightInput').value = "";
+                
+                switchTab('dashboard');
+                updateDashboard();
+            } catch (e) { 
+                console.error(e);
+                alert("Terjadi kesalahan teknis. Pastikan Script sudah di-deploy dengan akses 'Anyone'."); 
+            }
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
+        }
+
+        function updateDashboard() {
+            document.getElementById('statOrgCount').textContent = records.filter(r => r.kategori === 'Organik').length;
+            document.getElementById('statAnorgCount').textContent = records.filter(r => r.kategori === 'Anorganik').length;
+            document.getElementById('statTotalBerat').textContent = records.reduce((a, b) => a + (b.berat || 0), 0).toLocaleString('id-ID') + " kg";
+            updateCharts();
+        }
+
+        function initCharts() {
+            Chart.defaults.color = '#1e293b';
+            charts.monthly = new Chart(document.getElementById('monthlyChart'), {
+                type: 'line',
+                data: { 
+                    labels: ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], 
+                    datasets: [{ label: 'Akumulasi Limbah (kg)', data: Array(12).fill(0), borderColor: '#059669', backgroundColor: 'rgba(5, 150, 105, 0.1)', fill: true, tension: 0.3 }] 
+                },
+                options: { maintainAspectRatio: false }
+            });
+            charts.province = new Chart(document.getElementById('provinceChart'), {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Tonase per Wilayah', data: [], backgroundColor: '#0369a1', borderRadius: 5 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false }
+            });
+        }
+
+        function updateCharts() {
+            const monthlyData = Array(12).fill(0);
+            const provMap = {};
+            records.forEach(r => {
+                monthlyData[new Date(r.tanggal).getMonth()] += r.berat;
+                provMap[r.lokasi] = (provMap[r.lokasi] || 0) + (r.berat / 1000);
+            });
+            charts.monthly.data.datasets[0].data = monthlyData;
+            charts.monthly.update();
+            const sorted = Object.entries(provMap).sort((a,b) => b[1]-a[1]);
+            charts.province.data.labels = sorted.map(s => s[0]);
+            charts.province.data.datasets[0].data = sorted.map(s => s[1]);
+            charts.province.update();
+        }
+
+        function updateExchange() {
+            const container = document.getElementById('view-exchange');
+            if (records.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold italic">Belum ada data bursa nasional.</div>`;
+                return;
+            }
+            container.innerHTML = records.map(r => `
+                <div class="glass-card p-5 rounded-2xl shadow-md border-l-4 ${r.kategori === 'Organik' ? 'border-emerald-600' : 'border-sky-700'}">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-black text-slate-800 uppercase tracking-tight">${r.jenis_limbah}</h4>
+                        <span class="text-[9px] font-bold px-2 py-1 bg-slate-100 rounded">${r.status_b3}</span>
+                    </div>
+                    <p class="text-xs font-bold text-emerald-700">${r.nama_perusahaan}</p>
+                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">${r.lokasi}</p>
+                    <div class="mt-3 flex justify-between items-end">
+                        <div class="font-black text-2xl text-slate-900">${(r.berat/1000).toFixed(2)} <small class="text-xs">Ton</small></div>
+                        <div class="text-[9px] text-slate-300">${new Date(r.tanggal).toLocaleDateString('id-ID')}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
