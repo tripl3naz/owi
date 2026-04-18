@@ -1,436 +1,462 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, 
-  ClipboardList, 
-  ShoppingBag, 
+  BarChart3, 
   PlusCircle, 
+  Search, 
   TrendingUp, 
   MapPin, 
-  AlertTriangle, 
-  Leaf,
-  BarChart3,
-  Search,
+  AlertTriangle,
+  Send,
+  Loader2,
   CheckCircle2,
-  Building2,
-  FileText
+  Leaf,
+  Recycle
 } from 'lucide-react';
 import { 
-  LineChart, 
-  Line, 
+  BarChart, 
+  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  ResponsiveContainer, 
+  LineChart, 
+  Line,
+  Cell,
+  Legend
 } from 'recharts';
 
-// --- Konstanta Data ---
-const PROVINSI_38 = [
-  "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau", "Jambi", "Sumatera Selatan", "Bangka Belitung", "Bengkulu", "Lampung",
-  "DKI Jakarta", "Jawa Barat", "Banten", "Jawa Tengah", "DI Yogyakarta", "Jawa Timur",
-  "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur",
-  "Kalimantan Barat", "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara",
-  "Sulawesi Utara", "Sulawesi Tengah", "Sulawesi Selatan", "Sulawesi Tenggara", "Gorontalo", "Sulawesi Barat",
-  "Maluku", "Maluku Utara", "Papua", "Papua Barat", "Papua Tengah", "Papua Pegunungan", "Papua Selatan", "Papua Barat Daya"
-];
+/**
+ * KONFIGURASI BACKEND (Google Apps Script)
+ * PENTING: Jika error "Failed to fetch" berlanjut:
+ * 1. Pastikan di Google Apps Script: Deploy > New Deployment > Web App.
+ * 2. Set "Execute as" ke "Me".
+ * 3. Set "Who has access" ke "Anyone". (WAJIB)
+ */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5ts4yjIxxsrUKnsvmwNDUdTGzPRcqCuh_pTTPiwyYUmux4RMkjZgwiU1KWNNrHIxEnQ/exec"; 
 
-const INITIAL_WASTE_DATA = [
-  { id: 1, perusahaan: "PT Maju Terus", nib: "123456789", kategori: "Anorganik", status: "B3", volume: 500, lokasi: "Jawa Barat", tanggal: "2024-01-15" },
-  { id: 2, perusahaan: "CV Alam Hijau", nib: "987654321", kategori: "Organik", status: "Non-B3", volume: 1200, lokasi: "Jawa Timur", tanggal: "2024-01-20" },
-  { id: 3, perusahaan: "PT Industri Sejahtera", nib: "555666777", kategori: "Anorganik", status: "Non-B3", volume: 800, lokasi: "DKI Jakarta", tanggal: "2024-02-10" },
-  { id: 4, perusahaan: "PT Sinar Baru", nib: "111222333", kategori: "Anorganik", status: "B3", volume: 300, lokasi: "Banten", tanggal: "2024-02-25" },
-  { id: 5, perusahaan: "PT Global Logistik", nib: "444555666", kategori: "Organik", status: "Non-B3", volume: 1500, lokasi: "Jawa Tengah", tanggal: "2024-03-05" },
+const PROVINSI_LIST = [
+  "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau", "Jambi", 
+  "Bengkulu", "Sumatera Selatan", "Kepulauan Bangka Belitung", "Lampung", 
+  "DKI Jakarta", "Jawa Barat", "Banten", "Jawa Tengah", "DI Yogyakarta", "Jawa Timur", 
+  "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Kalimantan Barat", 
+  "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", 
+  "Sulawesi Utara", "Gorontalo", "Sulawesi Tengah", "Sulawesi Barat", "Sulawesi Selatan", 
+  "Sulawesi Tenggara", "Maluku", "Maluku Utara", "Papua", "Papua Barat", 
+  "Papua Tengah", "Papua Pegunungan", "Papua Selatan", "Papua Barat Daya"
 ];
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [wasteList, setWasteList] = useState(INITIAL_WASTE_DATA);
+  const [wasteData, setWasteData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+
   const [formData, setFormData] = useState({
-    perusahaan: '',
+    namaPerusahaan: '',
     nib: '',
     kategori: 'Organik',
-    status: 'Non-B3',
-    volume: '',
+    jenis: 'Non-B3',
+    berat: '',
     lokasi: 'DKI Jakarta'
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showToast, setShowToast] = useState(false);
 
-  // GANTI URL INI DENGAN WEB APP URL DARI GOOGLE APPS SCRIPT ANDA
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyTPMXsn4X13VYYYmYxnmMiYxmnbysSK1Wqf6MQtZJQXBak2yN61ziWVkfKfy-mPp32Lw/exec"; 
-
-  // --- Handle Form Submit ke Google Sheets ---
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    const newEntry = {
-      ...formData,
-      id: Date.now(),
-      volume: parseFloat(formData.volume),
-      tanggal: new Date().toISOString().split('T')[0]
-    };
+  // 1. FUNGSI AMBIL DATA DENGAN ERROR HANDLING TINGKAT LANJUT
+  const fetchData = async () => {
+    if (!SCRIPT_URL || SCRIPT_URL.includes("exec") === false) {
+      setConnectionStatus('local');
+      return;
+    }
 
     try {
-      if (APPS_SCRIPT_URL) {
-        // Mengirim data ke Google Apps Script
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors', // Penting untuk Apps Script
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newEntry)
-        });
-      }
+      // Menggunakan fetch dengan cache control untuk menghindari data lama
+      const response = await fetch(`${SCRIPT_URL}?t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        redirect: 'follow' // Sangat penting untuk Google Apps Script
+      });
 
-      // Update UI Lokal
-      setWasteList(prev => [newEntry, ...prev]);
-      setShowToast(true);
-      setFormData({ perusahaan: '', nib: '', kategori: 'Organik', status: 'Non-B3', volume: '', lokasi: 'DKI Jakarta' });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
-      setTimeout(() => setShowToast(false), 3000);
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        setWasteData(data);
+        setConnectionStatus('connected');
+      } else {
+        throw new Error("Data format is not an array");
+      }
     } catch (error) {
-      console.error("Gagal mengirim data:", error);
-    } finally {
-      setIsSubmitting(false);
+      console.error("Fetch Error:", error);
+      setConnectionStatus('error');
+      
+      // Jangan timpa data lama jika fetch gagal, kecuali jika state masih kosong
+      if (wasteData.length === 0) {
+        setWasteData([
+          { id: 'd1', namaPerusahaan: "PT Semesta Hijau (Demo)", nib: "1234567890123", kategori: "Organik", jenis: "Non-B3", berat: 1500, lokasi: "Jawa Barat", tanggal: new Date().toISOString() },
+          { id: 'd2', namaPerusahaan: "CV Solusi Alam (Demo)", nib: "9876543210987", kategori: "Anorganik", jenis: "B3", berat: 450, lokasi: "DKI Jakarta", tanggal: new Date().toISOString() }
+        ]);
+      }
     }
   };
 
-  // --- Dashboard Logic ---
+  useEffect(() => {
+    fetchData();
+    // Interval update dikurangi agar tidak membebani limit Google Apps Script gratis
+    const interval = setInterval(fetchData, 60000); 
+    return () => clearInterval(interval);
+  }, []);
+
+  // 2. LOGIK STATISTIK
   const stats = useMemo(() => {
-    const total = wasteList.reduce((acc, curr) => acc + curr.volume, 0);
-    const organik = wasteList.filter(w => w.kategori === 'Organik').reduce((acc, curr) => acc + curr.volume, 0);
-    const anorganik = wasteList.filter(w => w.kategori === 'Anorganik').reduce((acc, curr) => acc + curr.volume, 0);
+    const totalBerat = wasteData.reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
+    const beratOrganik = wasteData.filter(d => d.kategori === 'Organik').reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
+    const beratAnorganik = wasteData.filter(d => d.kategori === 'Anorganik').reduce((acc, curr) => acc + Number(curr.berat || 0), 0);
     
-    const lokasiMap = {};
-    wasteList.forEach(w => {
-      lokasiMap[w.lokasi] = (lokasiMap[w.lokasi] || 0) + w.volume;
-    });
-    
-    const ranking = Object.entries(lokasiMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, value]) => ({ name, value }));
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const monthlySummary = monthNames.map((name, index) => {
+      const filtered = wasteData.filter(d => {
+        const dDate = new Date(d.tanggal);
+        return !isNaN(dDate) && dDate.getMonth() === index;
+      });
+      return {
+        name,
+        organik: filtered.filter(f => f.kategori === 'Organik').reduce((a, b) => a + Number(b.berat), 0),
+        anorganik: filtered.filter(f => f.kategori === 'Anorganik').reduce((a, b) => a + Number(b.berat), 0),
+      };
+    }).filter(m => m.organik > 0 || m.anorganik > 0);
 
-    const timelineData = [
-      { month: 'Jan', volume: 1700 },
-      { month: 'Feb', volume: 1100 },
-      { month: 'Mar', volume: 1500 },
-      { month: 'Apr', volume: wasteList.length > 5 ? (total - 4300) + 500 : 500 },
-    ];
+    const provRanking = PROVINSI_LIST.map(p => ({
+      name: p,
+      total: wasteData.filter(d => d.lokasi === p).reduce((acc, curr) => acc + Number(curr.berat), 0)
+    }))
+    .filter(p => p.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
 
-    return { total, organik, anorganik, ranking, timelineData };
-  }, [wasteList]);
+    return { totalBerat, beratOrganik, beratAnorganik, monthlySummary, provRanking };
+  }, [wasteData]);
 
-  // --- Filtered Bursa Data ---
-  const filteredBursa = wasteList.filter(item => 
-    item.perusahaan.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.lokasi.toLowerCase().includes(searchTerm.toLowerCase())
+  // 3. KIRIM DATA
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const payload = {
+      ...formData,
+      berat: Number(formData.berat),
+      tanggal: new Date().toISOString()
+    };
+
+    try {
+      if (SCRIPT_URL) {
+        // Gunakan no-cors untuk pengiriman ke Apps Script guna menghindari masalah Preflight
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        setNotification({ msg: 'Laporan berhasil diunggah ke cloud', type: 'success' });
+        // Tunggu sebentar sebelum refresh agar server Google sempat memproses
+        setTimeout(fetchData, 2000);
+      } else {
+        setWasteData(prev => [payload, ...prev]);
+        setNotification({ msg: 'Berhasil disimpan (Mode Lokal)', type: 'success' });
+      }
+    } catch (err) {
+      setNotification({ msg: 'Gagal mengirim data ke server', type: 'error' });
+    } finally {
+      setIsLoading(false);
+      setActiveTab('bursa');
+      setFormData({ namaPerusahaan: '', nib: '', kategori: 'Organik', jenis: 'Non-B3', berat: '', lokasi: 'DKI Jakarta' });
+      setTimeout(() => setNotification(null), 4000);
+    }
+  };
+
+  const filteredData = wasteData.filter(item => 
+    (item.namaPerusahaan || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.lokasi || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans text-slate-900">
-      
-      {/* Sidebar Navigation */}
-      <nav className="bg-emerald-900 text-white w-full lg:w-72 flex flex-col lg:h-screen lg:fixed left-0 top-0 z-50">
-        <div className="p-8 flex items-center gap-3">
-          <div className="bg-white p-2 rounded-xl">
-            <Leaf className="text-emerald-700" size={28} />
+    <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-sans text-slate-900">
+      {/* Header / Nav */}
+      <nav className="border-b border-slate-100 px-6 h-20 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl z-30">
+        <div className="flex items-center gap-8">
+          <div className="flex flex-col select-none">
+            <span className="font-black text-2xl tracking-tighter text-[#2D5A27]">OWI</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] -mt-1">One Waste</span>
           </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tighter leading-none">OWI</h1>
-            <p className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold">One Waste Indonesia</p>
+          
+          <div className="hidden md:flex items-center gap-1 p-1 bg-slate-100 rounded-full">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+              { id: 'form', label: 'Registrasi', icon: PlusCircle },
+              { id: 'bursa', label: 'Bursa', icon: BarChart3 },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                  activeTab === tab.id 
+                  ? 'bg-white text-[#2D5A27] shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <tab.icon size={14} />
+                {tab.label.toUpperCase()}
+              </button>
+            ))}
           </div>
         </div>
         
-        <div className="flex-1 px-4 space-y-2">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all font-medium ${activeTab === 'dashboard' ? 'bg-emerald-700 text-white shadow-lg' : 'text-emerald-100 hover:bg-emerald-800'}`}
-          >
-            <LayoutDashboard size={20} /> Dashboard
-          </button>
-          <button 
-            onClick={() => setActiveTab('daftar')}
-            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all font-medium ${activeTab === 'daftar' ? 'bg-emerald-700 text-white shadow-lg' : 'text-emerald-100 hover:bg-emerald-800'}`}
-          >
-            <ClipboardList size={20} /> Daftar Limbah
-          </button>
-          <button 
-            onClick={() => setActiveTab('bursa')}
-            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl transition-all font-medium ${activeTab === 'bursa' ? 'bg-emerald-700 text-white shadow-lg' : 'text-emerald-100 hover:bg-emerald-800'}`}
-          >
-            <ShoppingBag size={20} /> Bursa Limbah
-          </button>
+        <div className="flex items-center gap-4">
+          <div className="text-right border-l pl-6 border-slate-200">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Server Stats</p>
+            <div className="flex items-center gap-2 justify-end">
+               <span className={`w-2 h-2 rounded-full ${
+                 connectionStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 
+                 connectionStatus === 'error' ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-bounce'
+               }`}></span>
+               <p className={`text-[11px] font-bold uppercase ${
+                 connectionStatus === 'connected' ? 'text-green-600' : 
+                 connectionStatus === 'error' ? 'text-red-500' : 'text-amber-600'
+               }`}>
+                 {connectionStatus === 'connected' ? 'Online' : 
+                  connectionStatus === 'error' ? 'Offline/CORS' : 'Linking...'}
+               </p>
+            </div>
+          </div>
         </div>
       </nav>
 
-      {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 p-6 lg:p-12 pb-24 lg:pb-12">
-        <div className="max-w-6xl mx-auto">
-          
-          {/* TAB: DASHBOARD */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
-              <header>
-                <h2 className="text-4xl font-black text-slate-800">Statistik Limbah Nasional</h2>
-              </header>
+      <main className="max-w-7xl mx-auto w-full p-6 lg:p-10 flex-1">
+        {/* Notifikasi Toast */}
+        {notification && (
+          <div className={`fixed bottom-8 right-8 z-50 flex items-center gap-3 p-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-10 ${
+            notification.type === 'success' ? 'bg-white border-green-100 text-slate-900' : 'bg-red-600 text-white border-transparent'
+          }`}>
+            <div className={`p-2 rounded-xl ${notification.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-white/20'}`}>
+              <CheckCircle2 size={18} />
+            </div>
+            <span className="text-sm font-bold">{notification.msg}</span>
+          </div>
+        )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-                  <div className="bg-indigo-50 w-14 h-14 rounded-2xl flex items-center justify-center text-indigo-600 mb-6">
-                    <BarChart3 size={28} />
+        {/* Dashboard View */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-10 animate-in fade-in duration-500">
+            <header>
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight">Ecosystem Monitoring</h1>
+              <p className="text-slate-500 font-medium">Visualisasi data limbah terkumpul di tingkat nasional.</p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-8 rounded-[2rem] bg-[#2D5A27] text-white shadow-xl shadow-green-100 relative overflow-hidden group">
+                <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform" />
+                <TrendingUp className="mb-4 opacity-50" size={32} />
+                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Total Akumulasi</p>
+                <h2 className="text-4xl font-black mt-1">{(stats.totalBerat || 0).toLocaleString()}<span className="text-lg font-medium ml-2 opacity-60">kg</span></h2>
+              </div>
+
+              <div className="p-8 rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:border-green-100 transition-colors">
+                <Leaf className="mb-4 text-[#2D5A27]" size={32} />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limbah Organik</p>
+                <h2 className="text-4xl font-black mt-1 text-slate-900">{(stats.beratOrganik || 0).toLocaleString()}<span className="text-sm font-medium ml-2 text-slate-400">kg</span></h2>
+              </div>
+
+              <div className="p-8 rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:border-blue-100 transition-colors">
+                <Recycle className="mb-4 text-[#006699]" size={32} />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limbah Anorganik</p>
+                <h2 className="text-4xl font-black mt-1 text-slate-900">{(stats.beratAnorganik || 0).toLocaleString()}<span className="text-sm font-medium ml-2 text-slate-400">kg</span></h2>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-lg font-black text-slate-800 italic">Timeline Sirkularitas</h3>
+                  <div className="flex gap-4">
+                     <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#2D5A27]"></span><span className="text-[10px] font-bold text-slate-400">ORGANIK</span></div>
+                     <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#006699]"></span><span className="text-[10px] font-bold text-slate-400">ANORGANIK</span></div>
                   </div>
-                  <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">Total Volume</p>
-                  <h3 className="text-4xl font-black text-slate-900 mt-1">{stats.total.toLocaleString()}<span className="text-lg ml-2 font-normal text-slate-400">kg</span></h3>
                 </div>
-                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-                  <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center text-emerald-600 mb-6">
-                    <Leaf size={28} />
-                  </div>
-                  <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">Limbah Organik</p>
-                  <h3 className="text-4xl font-black text-slate-900 mt-1">{stats.organik.toLocaleString()}<span className="text-lg ml-2 font-normal text-slate-400">kg</span></h3>
-                </div>
-                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-                  <div className="bg-orange-50 w-14 h-14 rounded-2xl flex items-center justify-center text-orange-600 mb-6">
-                    <AlertTriangle size={28} />
-                  </div>
-                  <p className="text-sm text-slate-500 font-bold uppercase tracking-wider">Limbah Anorganik</p>
-                  <h3 className="text-4xl font-black text-slate-900 mt-1">{stats.anorganik.toLocaleString()}<span className="text-lg ml-2 font-normal text-slate-400">kg</span></h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer>
+                    <LineChart data={stats.monthlySummary}>
+                      <CartesianGrid stroke="#f1f5f9" vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                      <Tooltip 
+                        contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', fontWeight: 'bold'}} 
+                        cursor={{stroke: '#e2e8f0', strokeWidth: 2}}
+                      />
+                      <Line type="monotone" name="Organik" dataKey="organik" stroke="#2D5A27" strokeWidth={4} dot={{r: 4, strokeWidth: 2, fill: '#fff'}} activeDot={{r: 6}} />
+                      <Line type="monotone" name="Anorganik" dataKey="anorganik" stroke="#006699" strokeWidth={4} dot={{r: 4, strokeWidth: 2, fill: '#fff'}} activeDot={{r: 6}} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                <div className="lg:col-span-3 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-8">
-                    <h4 className="text-xl font-bold flex items-center gap-2"><TrendingUp className="text-emerald-600" size={24}/> Tren Bulanan</h4>
-                    <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-500 rounded-full">LIVE DATA</span>
-                  </div>
-                  <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={stats.timelineData}>
-                        <defs>
-                          <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Area type="monotone" dataKey="volume" stroke="#059669" strokeWidth={4} fillOpacity={1} fill="url(#colorVol)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-                  <h4 className="text-xl font-bold mb-8 flex items-center gap-2"><MapPin className="text-rose-500" size={24}/> Ranking Provinsi</h4>
-                  <div className="space-y-6">
-                    {stats.ranking.map((item, index) => (
-                      <div key={item.name} className="group">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-bold text-slate-700 flex items-center gap-3">
-                            <span className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-lg text-xs font-black text-slate-500 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                              {index + 1}
-                            </span>
-                            {item.name}
-                          </span>
-                          <span className="text-emerald-700 font-black">{item.value.toLocaleString()} kg</span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                          <div 
-                            className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" 
-                            style={{ width: `${(item.value / (stats.ranking[0]?.value || 1)) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <h3 className="text-lg font-black text-slate-800 mb-8 italic">Peta Konsentrasi Wilayah</h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer>
+                    <BarChart data={stats.provRanking} layout="vertical">
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={110} fontSize={10} fontWeight={800} />
+                      <Tooltip cursor={{fill: 'transparent'}} />
+                      <Bar dataKey="total" radius={[0, 20, 20, 0]} barSize={18}>
+                        {stats.provRanking.map((_, i) => (
+                          <Cell key={i} fill={i === 0 ? '#2D5A27' : '#e2e8f0'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* TAB: DAFTAR FORM */}
-          {activeTab === 'daftar' && (
-            <div className="max-w-3xl mx-auto space-y-10 animate-in slide-in-from-bottom-6 duration-500">
-              <header className="text-center">
-                <h2 className="text-4xl font-black text-slate-800">Pencatatan Limbah</h2>
-              </header>
+        {/* Form View */}
+        {activeTab === 'form' && (
+          <div className="max-w-2xl mx-auto animate-in zoom-in-95 duration-300">
+            <header className="mb-10 text-center">
+              <h1 className="text-4xl font-black text-slate-900 italic">Submission Center</h1>
+              <p className="text-slate-500 font-medium">Input data limbah korporat secara real-time.</p>
+            </header>
 
-              <div className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100">
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <Building2 size={16} /> Nama Perusahaan
-                    </label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
-                      placeholder="Contoh: PT. Sinergi Alam"
-                      value={formData.perusahaan}
-                      onChange={e => setFormData({...formData, perusahaan: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <FileText size={16} /> NOMOR INDUK BERUSAHA
-                    </label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
-                      placeholder="13 DIGIT NIB"
-                      value={formData.nib}
-                      onChange={e => setFormData({...formData, nib: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider">Kategori</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium appearance-none cursor-pointer"
-                      value={formData.kategori}
-                      onChange={e => setFormData({...formData, kategori: e.target.value})}
-                    >
-                      <option value="Organik">🌿 Organik</option>
-                      <option value="Anorganik">🏢 Anorganik</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider">Status B3</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {['B3', 'Non-B3'].map(status => (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => setFormData({...formData, status: status})}
-                          className={`py-4 rounded-2xl font-bold border-2 transition-all ${formData.status === status ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-200'}`}
-                        >
-                          {status}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider">Volume (kg)</label>
-                    <input 
-                      required
-                      type="number" 
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-black text-2xl text-emerald-700"
-                      placeholder="0"
-                      value={formData.volume}
-                      onChange={e => setFormData({...formData, volume: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider">Provinsi</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium cursor-pointer"
-                      value={formData.lokasi}
-                      onChange={e => setFormData({...formData, lokasi: e.target.value})}
-                    >
-                      {PROVINSI_38.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div className="md:col-span-2 pt-6">
-                    <button 
-                      disabled={isSubmitting}
-                      className="w-full bg-emerald-600 text-white font-black text-lg py-5 rounded-2xl shadow-xl shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-3"
-                    >
-                      {isSubmitting ? (
-                        <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ) : <CheckCircle2 size={24} />}
-                      {isSubmitting ? 'Mengirim Data...' : 'KIRIM'}
-                    </button>
-                  </div>
-                </form>
+            <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Nama Perusahaan</label>
+                  <input required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none transition-all font-bold" value={formData.namaPerusahaan} onChange={e => setFormData({...formData, namaPerusahaan: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">NIB</label>
+                  <input required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none transition-all font-bold" value={formData.nib} onChange={e => setFormData({...formData, nib: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Kategori Utama</label>
+                  <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold" value={formData.kategori} onChange={e => setFormData({...formData, kategori: e.target.value})}>
+                    <option>Organik</option>
+                    <option>Anorganik</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Massa (Kg)</label>
+                  <input type="number" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold tabular-nums" value={formData.berat} onChange={e => setFormData({...formData, berat: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Lokasi Provinsi</label>
+                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-[#2D5A27]/30 focus:bg-white rounded-2xl outline-none font-bold" value={formData.lokasi} onChange={e => setFormData({...formData, lokasi: e.target.value})}>
+                  {PROVINSI_LIST.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sifat Material:</p>
+                 <label className="text-sm font-bold flex items-center gap-3 cursor-pointer"><input type="radio" className="w-5 h-5 accent-[#006699]" checked={formData.jenis === 'Non-B3'} onChange={() => setFormData({...formData, jenis: 'Non-B3'})}/> Non-B3</label>
+                 <label className="text-sm font-bold flex items-center gap-3 cursor-pointer text-red-600"><input type="radio" className="w-5 h-5 accent-red-600" checked={formData.jenis === 'B3'} onChange={() => setFormData({...formData, jenis: 'B3'})}/> B3</label>
+              </div>
+
+              <button disabled={isLoading} className="w-full py-5 bg-[#2D5A27] text-white rounded-[1.5rem] font-black text-lg hover:shadow-2xl hover:shadow-green-200 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
+                {isLoading ? <Loader2 className="animate-spin" size={24}/> : <Send size={20}/>}
+                TRANSMIT DATA
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Bursa View */}
+        {activeTab === 'bursa' && (
+          <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-500">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tight italic">Resource Exchange</h1>
+                <p className="text-slate-500 font-medium">Data inventori limbah sirkular aktif.</p>
+              </div>
+              <div className="relative w-full md:w-96 group">
+                <Search size={18} className="absolute left-5 top-5 text-slate-400 group-focus-within:text-[#2D5A27] transition-colors" />
+                <input className="w-full pl-14 pr-8 py-5 bg-white border border-slate-100 rounded-3xl text-sm font-bold outline-none shadow-sm focus:ring-4 focus:ring-[#2D5A27]/5 focus:border-[#2D5A27]/20 transition-all" placeholder="Cari entitas atau provinsi..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+            </header>
+
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-xl shadow-slate-100">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50/50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-100">
+                      <th className="px-10 py-6 text-left">Nama Perusahaan / NIB</th>
+                      <th className="px-10 py-6 text-left">Region</th>
+                      <th className="px-10 py-6 text-left">Klasifikasi</th>
+                      <th className="px-10 py-6 text-right">Massa Bersih</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredData.length > 0 ? filteredData.map((item, idx) => (
+                      <tr key={idx} className="group hover:bg-green-50/30 transition-colors">
+                        <td className="px-10 py-6">
+                          <p className="font-black text-slate-900 group-hover:text-[#2D5A27] transition-colors uppercase tracking-tight">{item.namaPerusahaan}</p>
+                          <p className="text-[10px] font-bold text-slate-400 font-mono italic">{item.nib}</p>
+                        </td>
+                        <td className="px-10 py-6 font-extrabold text-[11px] text-slate-500 uppercase"><MapPin size={12} className="inline mr-2 text-[#006699]"/> {item.lokasi}</td>
+                        <td className="px-10 py-6">
+                          <div className="flex items-center gap-2">
+                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${item.kategori === 'Organik' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{item.kategori}</span>
+                             {item.jenis === 'B3' && <span className="px-3 py-1 bg-red-50 text-red-500 rounded-lg text-[9px] font-black border border-red-100">B3</span>}
+                          </div>
+                        </td>
+                        <td className="px-10 py-6 text-right font-black text-[#2D5A27] text-lg tabular-nums">{(Number(item.berat) || 0).toLocaleString()} <span className="text-[10px] text-slate-400 ml-1">KG</span></td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="4" className="px-10 py-24 text-center">
+                           <div className="flex flex-col items-center gap-4">
+                             <Search size={48} className="text-slate-100" />
+                             <p className="text-slate-400 font-bold italic">No records matching your search criteria</p>
+                           </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
-
-          {/* TAB: BURSA */}
-          {activeTab === 'bursa' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                  <h2 className="text-4xl font-black text-slate-800">Bursa Limbah</h2>
-                </div>
-                <div className="relative group min-w-[320px]">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
-                  <input 
-                    type="text" 
-                    placeholder="Cari perusahaan atau provinsi..."
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-emerald-500 outline-none shadow-sm transition-all"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </header>
-
-              {filteredBursa.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredBursa.map(waste => (
-                    <div key={waste.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 group-hover:bg-emerald-50 transition-colors"></div>
-                      
-                      <div className="flex justify-between items-start mb-6 relative">
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${waste.kategori === 'Organik' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {waste.kategori}
-                        </div>
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${waste.status === 'B3' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
-                          {waste.status}
-                        </div>
-                      </div>
-
-                      <h4 className="font-black text-xl text-slate-800 mb-2 truncate group-hover:text-emerald-700 transition-colors">{waste.perusahaan}</h4>
-                      <div className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-6">
-                        <MapPin size={14} className="text-rose-400" /> {waste.lokasi}
-                      </div>
-
-                      <div className="flex justify-between items-end border-t border-slate-50 pt-6">
-                        <div>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Estimasi Stok</p>
-                          <p className="text-3xl font-black text-slate-900 leading-none">{waste.volume} <span className="text-sm font-normal text-slate-400">kg</span></p>
-                        </div>
-                        <button className="bg-slate-900 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-slate-200 active:scale-95">
-                          Ambil Limbah
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-                  <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Search className="text-slate-300" size={32} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-700">Data tidak ditemukan</h3>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
-      {/* Floating Success Toast */}
-      {showToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-3xl shadow-2xl flex items-center gap-4 z-[100] animate-in slide-in-from-bottom-10 fade-in">
-          <div className="bg-emerald-500 p-1.5 rounded-full">
-            <CheckCircle2 size={20} strokeWidth={3} />
-          </div>
-          <div>
-            <p className="font-black text-lg leading-tight">Berhasil Terkirim</p>
-            <p className="text-slate-400 text-sm">Data Anda telah masuk ke basis data OWI Nasional.</p>
-          </div>
+      {/* Mini Footer */}
+      <footer className="p-10 bg-white border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex flex-col">
+          <span className="font-black text-xl text-[#2D5A27] italic tracking-tighter">OWI INDONESIA</span>
+          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.4em] ml-1">Circular Intelligence</span>
         </div>
-      )}
+        <div className="flex items-center gap-8">
+           <div className="text-right">
+              <p className="text-[9px] font-black text-slate-300 uppercase">Version</p>
+              <p className="text-[11px] font-bold text-slate-400 italic">2.5.2 Stable-Sync</p>
+           </div>
+           <div className="text-right border-l pl-8 border-slate-100">
+              <p className="text-[9px] font-black text-slate-300 uppercase">Status</p>
+              <p className="text-[11px] font-bold text-[#2D5A27]">Active & Encrypted</p>
+           </div>
+        </div>
+      </footer>
     </div>
   );
 };
