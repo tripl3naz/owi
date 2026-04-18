@@ -25,7 +25,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="bg-white p-6 rounded-2xl flex items-center gap-4 shadow-xl">
             <div class="animate-spin rounded-full h-8 w-8 border-4 border-emerald-600 border-t-transparent"></div>
-            <span id="loadingText" class="font-bold text-slate-800">Menghubungkan ke Cloud...</span>
+            <span class="font-bold text-slate-800">Sinkronisasi OWI ke Cloud...</span>
         </div>
     </div>
 
@@ -142,15 +142,15 @@
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Lokasi (38 Provinsi)</label>
                         <select id="locationInput" class="w-full p-3 border border-slate-200 rounded-xl outline-none bg-slate-50 font-semibold">
                             <option value="">-- Pilih Wilayah --</option>
-                            <optgroup label="Sumatera">
+                            <optgroup label="Sumatra">
                                 <option value="Aceh">Aceh</option>
-                                <option value="Sumatera Utara">Sumatera Utara</option>
-                                <option value="Sumatera Barat">Sumatera Barat</option>
+                                <option value="Sumatra Utara">Sumatra Utara</option>
+                                <option value="Sumatra Barat">Sumatra Barat</option>
                                 <option value="Riau">Riau</option>
                                 <option value="Kepulauan Riau">Kepulauan Riau</option>
                                 <option value="Jambi">Jambi</option>
                                 <option value="Bengkulu">Bengkulu</option>
-                                <option value="Sumatera Selatan">Sumatera Selatan</option>
+                                <option value="Sumatra Selatan">Sumatra Selatan</option>
                                 <option value="Kepulauan Bangka Belitung">Kepulauan Bangka Belitung</option>
                                 <option value="Lampung">Lampung</option>
                             </optgroup>
@@ -204,32 +204,13 @@
     </div>
 
     <script>
-        // Masukkan URL Google Apps Script Exec Anda di antara tanda kutip di bawah ini
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjpOproRUzcmavzioUJxvTfV4GIJk40w-xX_a5UUd3ILk_VzldnzaxGJqEZgURqwBfUA/exec"; 
+        // URL Google Apps Script Exec yang telah diperbarui
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHV_w8IWnNZDS9KNGlab0lojk8QtsnzNCShkfhF-P8RlXtPFhAYGrruL97sLjsPLWpxA/exec"; 
 
         let records = [];
         let charts = {};
 
-        window.onload = () => { 
-            initCharts(); 
-            loadCloudData(); // Memuat data saat aplikasi pertama kali dibuka
-        };
-
-        async function loadCloudData() {
-            showLoading("Sinkronisasi Data Nasional...");
-            try {
-                const response = await fetch(SCRIPT_URL);
-                const data = await response.json();
-                if (data && Array.isArray(data)) {
-                    records = data.reverse(); // Data terbaru di atas
-                    updateDashboard();
-                }
-            } catch (e) {
-                console.log("Mode Offline atau Gagal Load:", e);
-            } finally {
-                hideLoading();
-            }
-        }
+        window.onload = () => { initCharts(); updateDashboard(); };
 
         function switchTab(tab) {
             ['dashboard', 'input', 'exchange'].forEach(v => {
@@ -258,25 +239,21 @@
                 alert("Harap lengkapi semua data pendaftaran!"); return;
             }
 
-            showLoading("Mengirim Laporan ke Database OWI...");
-            
+            document.getElementById('loadingOverlay').style.display = 'grid';
             try {
-                // Gunakan URLSearchParams untuk kompatibilitas Google Script POST yang lebih baik
-                const formData = new URLSearchParams();
-                for (const key in data) {
-                    formData.append(key, data[key]);
-                }
-
+                // Update memori lokal untuk UI instan
+                records.unshift(data);
+                
+                // Kirim ke Google Sheets
                 await fetch(SCRIPT_URL, { 
                     method: 'POST', 
                     mode: 'no-cors', 
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data) 
                 });
 
-                // Update lokal agar user tidak menunggu fetch ulang
-                records.unshift(data);
-                alert("Laporan berhasil dikirim!");
+                alert("Laporan berhasil tersinkronkan ke Database OWI!");
                 
                 // Reset form
                 document.getElementById('wasteNameInput').value = "";
@@ -286,19 +263,9 @@
                 updateDashboard();
             } catch (e) { 
                 console.error(e);
-                alert("Gagal sinkronisasi. Periksa koneksi internet Anda."); 
-            } finally { 
-                hideLoading(); 
+                alert("Terjadi kesalahan teknis. Pastikan Script sudah di-deploy dengan akses 'Anyone'."); 
             }
-        }
-
-        function showLoading(text) {
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('loadingOverlay').style.display = 'grid';
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
         }
 
         function updateDashboard() {
@@ -329,10 +296,7 @@
             const monthlyData = Array(12).fill(0);
             const provMap = {};
             records.forEach(r => {
-                const date = new Date(r.tanggal);
-                if (!isNaN(date.getTime())) {
-                    monthlyData[date.getMonth()] += r.berat;
-                }
+                monthlyData[new Date(r.tanggal).getMonth()] += r.berat;
                 provMap[r.lokasi] = (provMap[r.lokasi] || 0) + (r.berat / 1000);
             });
             charts.monthly.data.datasets[0].data = monthlyData;
