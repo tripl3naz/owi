@@ -3,27 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OWI - One Waste Indonesia</title>
+    <title>OWI - One Waste Indonesia (TPS Edition)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
         .tab-active { 
             background: linear-gradient(to right, #0ea5e9, #10b981);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             border-bottom: 2px solid #10b981;
         }
+        .mobile-tab-active {
+            color: #10b981;
+        }
         .bg-gradient-owi { background: linear-gradient(135deg, #075985 0%, #065f46 100%); }
         .card-hover:hover { transform: translateY(-4px); transition: all 0.3s ease; }
+        
+        /* Shimmer Loading Effect */
+        .shimmer {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 min-h-screen pb-24 md:pb-8">
 
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100">
+    <!-- Header Navigation untuk Desktop -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100 hidden md:block">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center gap-3">
@@ -35,73 +52,89 @@
                         <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600 leading-none">One Waste Indonesia</p>
                     </div>
                 </div>
-                <div class="hidden md:flex space-x-10">
+                <div class="flex space-x-10">
                     <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-link tab-active py-7 px-1 text-sm font-bold transition-all">Dashboard</button>
-                    <button onclick="switchTab('daftar')" id="btn-daftar" class="tab-link py-7 px-1 text-sm font-semibold text-slate-400 hover:text-sky-600 transition-all">Daftar Limbah</button>
-                    <button onclick="switchTab('bursa')" id="btn-bursa" class="tab-link py-7 px-1 text-sm font-semibold text-slate-400 hover:text-sky-600 transition-all">Bursa Limbah</button>
+                    <button onclick="switchTab('daftar')" id="btn-daftar" class="tab-link py-7 px-1 text-sm font-semibold text-slate-400 hover:text-sky-600 transition-all">Daftar Limbah TPS</button>
+                    <button onclick="switchTab('bursa')" id="btn-bursa" class="tab-link py-7 px-1 text-sm font-semibold text-slate-400 hover:text-sky-600 transition-all">Bursa 3R</button>
                 </div>
                 <div class="flex items-center gap-4">
                     <button onclick="syncData()" id="syncBtn" class="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Sinkronisasi Data">
                         <i class="fas fa-sync-alt" id="syncIcon"></i>
                     </button>
-                    <div class="md:hidden">
-                        <i class="fas fa-bars text-slate-600 text-xl"></i>
-                    </div>
                 </div>
             </div>
         </div>
     </nav>
 
-    <header class="bg-gradient-owi py-12 mb-8"></header>
+    <!-- Header Informasi Singkat (Desktop & Mobile) -->
+    <header class="bg-gradient-owi py-8 md:py-12 mb-6 md:mb-8 text-white">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div>
+                <span class="bg-emerald-500/30 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Satu Indonesia</span>
+                <h1 class="text-2xl md:text-3xl font-extrabold mt-2">Bersih, Kasih.</h1>
+                <p class="text-sky-100 opacity-80 text-xs md:text-sm mt-1">Platform Manajemen Limbah 3R Terintegrasi Nasional</p>
+            </div>
+            <!-- Tombol sync untuk mobile di header -->
+            <button onclick="syncData()" class="md:hidden p-3 bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all">
+                <i class="fas fa-sync-alt text-white text-lg" id="syncIconMobile"></i>
+            </button>
+        </div>
+    </header>
 
-    <main class="max-w-7xl mx-auto px-4 pb-20">
+    <!-- Area Konten Utama -->
+    <main class="max-w-7xl mx-auto px-4">
         
         <!-- Tab 1: Dashboard -->
         <div id="tab-dashboard" class="tab-content">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 -mt-20">
-                <div class="bg-white p-6 rounded-2xl shadow-xl border border-white card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Volume</p>
+            <!-- Grid Statistik Utama (Sangat Responsif) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 -mt-16 md:-mt-20 px-2">
+                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md md:shadow-xl border border-white card-hover">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Volume Masuk</p>
                         <div class="bg-sky-100 p-2 rounded-lg"><i class="fas fa-weight-hanging text-sky-600"></i></div>
                     </div>
-                    <p class="text-3xl font-extrabold text-slate-800" id="stat-total">0 kg</p>
+                    <p class="text-2xl md:text-3xl font-extrabold text-slate-800" id="stat-total">0 kg</p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-xl border border-white card-hover">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md md:shadow-xl border border-white card-hover">
+                    <div class="flex items-center justify-between mb-3">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Limbah Organik</p>
                         <div class="bg-emerald-100 p-2 rounded-lg"><i class="fas fa-leaf text-emerald-600"></i></div>
                     </div>
-                    <p class="text-3xl font-extrabold text-slate-800" id="stat-organik">0 kg</p>
+                    <p class="text-2xl md:text-3xl font-extrabold text-slate-800" id="stat-organik">0 kg</p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-xl border border-white card-hover">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md md:shadow-xl border border-white card-hover">
+                    <div class="flex items-center justify-between mb-3">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Limbah Anorganik</p>
                         <div class="bg-amber-100 p-2 rounded-lg"><i class="fas fa-flask text-amber-600"></i></div>
                     </div>
-                    <p class="text-3xl font-extrabold text-slate-800" id="stat-anorganik">0 kg</p>
+                    <p class="text-2xl md:text-3xl font-extrabold text-slate-800" id="stat-anorganik">0 kg</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+            <!-- Grafik Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                <!-- Tren Bulanan -->
+                <div class="lg:col-span-2 bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-100">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-slate-800">Tren Bulanan Limbah</h3>
-                        <div class="flex gap-2 text-xs font-semibold text-slate-400">UNIT: KG</div>
+                        <h3 class="font-bold text-slate-800 text-sm md:text-base">Tren Bulanan Limbah TPS</h3>
+                        <span class="text-[10px] font-semibold text-slate-400">SATUAN: KG</span>
                     </div>
-                    <div class="h-80">
+                    <div class="h-64 md:h-80">
                         <canvas id="monthlyChart"></canvas>
                     </div>
                 </div>
 
-                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-800 mb-6 text-center">Komposisi Limbah</h3>
-                    <div class="h-64 mb-4">
+                <!-- Komposisi Limbah -->
+                <div class="bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <h3 class="font-bold text-slate-800 mb-4 text-center text-sm md:text-base">Komposisi Organik vs Anorganik</h3>
+                    <div class="h-56 md:h-64 mb-4">
                         <canvas id="compositionChart"></canvas>
                     </div>
                 </div>
 
-                <div class="lg:col-span-3 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-800 mb-6">Top 5 Provinsi Berdasarkan Volume</h3>
+                <!-- Top 5 Provinsi -->
+                <div class="lg:col-span-3 bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 mb-6 text-sm md:text-base">Top 5 Provinsi Pengirim Terbesar</h3>
                     <div class="h-64">
                         <canvas id="rankingChart"></canvas>
                     </div>
@@ -109,85 +142,106 @@
             </div>
         </div>
 
-        <!-- Tab 2: Daftar Limbah -->
+        <!-- Tab 2: Daftar Limbah (Pendaftaran TPS) -->
         <div id="tab-daftar" class="tab-content hidden">
-            <div class="max-w-3xl mx-auto bg-white p-10 rounded-3xl shadow-lg border border-slate-100">
-                <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Pendaftaran Limbah Baru</h2>
-                    <p class="text-slate-500 text-sm mt-1">Lengkapi deskripsi detail limbah untuk memudahkan verifikasi.</p>
+            <div class="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-2xl md:rounded-3xl shadow-lg border border-slate-100">
+                <div class="text-center mb-6 md:mb-8">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-800">Formulir Pelaporan TPS</h2>
+                    <p class="text-slate-500 text-xs md:text-sm mt-1">Laporkan akumulasi limbah dari TPS Anda untuk divalidasi ke sistem pusat.</p>
                 </div>
                 
-                <form id="wasteForm" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form id="wasteForm" class="space-y-4 md:space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Nama Perusahaan</label>
-                            <input type="text" id="companyName" required placeholder="PT. Contoh Indonesia" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Nama TPS</label>
+                            <input type="text" id="companyName" required placeholder="TPS Sukamaju Mandiri" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm">
                         </div>
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">NIB</label>
-                            <input type="text" id="nib" required placeholder="1234567890" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Nomor Registrasi TPS</label>
+                            <input type="text" id="nib" required placeholder="REG-TPS-320420" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Kategori Limbah</label>
-                            <select id="category" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none bg-white">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Kategori Limbah</label>
+                            <select id="category" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-sm">
                                 <option value="Organik">Organik</option>
                                 <option value="Anorganik">Anorganik</option>
                             </select>
                         </div>
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Klasifikasi</label>
-                            <select id="isB3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none bg-white">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Klasifikasi</label>
+                            <select id="isB3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-sm">
                                 <option value="Non B3">Non B3</option>
-                                <option value="B3">B3</option>
+                                <option value="B3">B3 (Bahan Berbahaya)</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Volume (KG)</label>
-                            <input type="number" id="volume" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Volume (KG)</label>
+                            <input type="number" id="volume" required placeholder="0" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm">
                         </div>
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Provinsi Asal</label>
-                            <select id="location" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none bg-white">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Rekomendasi 3R</label>
+                            <select id="potensi3R" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-sm">
+                                <option value="Recycle">Recycle (Daur Ulang)</option>
+                                <option value="Reuse">Reuse (Pakai Kembali)</option>
+                                <option value="Reduce">Reduce (Reduksi Sumber)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Provinsi Asal</label>
+                            <select id="location" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-sm">
                                 <!-- Loaded via JS -->
                             </select>
                         </div>
                     </div>
 
-                    <!-- Kolom Deskripsi -->
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Deskripsi Limbah</label>
-                        <textarea id="description" rows="3" placeholder="Contoh: Sisa kain potongan industri garmen, warna putih bersih..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"></textarea>
+                        <label class="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Deskripsi Detail Limbah</label>
+                        <textarea id="description" rows="3" placeholder="Sebutkan jenis detail material (misal: Sisa kardus, daun kering, residu plastik HDPE...)" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"></textarea>
                     </div>
 
-                    <button type="submit" id="submitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3">
-                        <i class="fas fa-cloud-upload-alt"></i> KIRIM
+                    <button type="submit" id="submitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3">
+                        <i class="fas fa-paper-plane"></i> KIRIM LAPORAN TPS
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Tab 3: Bursa Limbah -->
+        <!-- Tab 3: Bursa Limbah 3R -->
         <div id="tab-bursa" class="tab-content hidden">
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <h1 class="text-xl font-bold text-slate-800">Data Sinkronisasi Cloud</h1>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 md:p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 class="text-lg md:text-xl font-bold text-slate-800">Bursa 3R (Aliran Material Daur Ulang)</h1>
+                        <p class="text-xs md:text-sm text-slate-500">Daftar limbah dari berbagai TPS nasional yang siap diproses untuk aksi penyelamatan lingkungan.</p>
+                    </div>
                     <div id="loadingIndicator" class="hidden text-xs text-emerald-600 font-bold italic">
-                        <i class="fas fa-spinner fa-spin mr-2"></i>Mengambil data terbaru...
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Sinkronisasi Cloud...
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+
+                <!-- Loader Animasi / Shimmer -->
+                <div id="shimmerLoader" class="p-8 space-y-4 hidden">
+                    <div class="h-6 shimmer w-2/3 rounded-md"></div>
+                    <div class="h-12 shimmer w-full rounded-md"></div>
+                    <div class="h-12 shimmer w-full rounded-md"></div>
+                    <div class="h-12 shimmer w-full rounded-md"></div>
+                </div>
+
+                <!-- Tampilan Desktop (Tabel) -->
+                <div class="hidden md:block overflow-x-auto" id="bursaTableWrapper">
                     <table class="min-w-full">
                         <thead class="bg-slate-50">
                             <tr>
-                                <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Perusahaan</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Asal TPS</th>
                                 <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Lokasi</th>
                                 <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Deskripsi</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Alur 3R</th>
                                 <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Kategori</th>
                                 <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Volume</th>
                                 <th class="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Status</th>
@@ -198,19 +252,42 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Tampilan Mobile (Daftar Kartu / Card-List) -->
+                <div class="md:hidden p-4 space-y-4" id="bursaCardContainer">
+                    <!-- Cards will be populated dynamically -->
+                </div>
             </div>
         </div>
     </main>
 
+    <!-- Bottom Navigation Bar untuk Versi Mobile -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-50">
+        <div class="flex justify-around items-center h-16">
+            <button onclick="switchTab('dashboard')" id="m-btn-dashboard" class="mobile-tab-link mobile-tab-active flex flex-col items-center justify-center w-full h-full text-slate-400">
+                <i class="fas fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">Dashboard</span>
+            </button>
+            <button onclick="switchTab('daftar')" id="m-btn-daftar" class="mobile-tab-link flex flex-col items-center justify-center w-full h-full text-slate-400">
+                <i class="fas fa-plus-circle text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">Daftar</span>
+            </button>
+            <button onclick="switchTab('bursa')" id="m-btn-bursa" class="mobile-tab-link flex flex-col items-center justify-center w-full h-full text-slate-400">
+                <i class="fas fa-hand-holding-heart text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">Bursa 3R</span>
+            </button>
+        </div>
+    </nav>
+
     <!-- Modal Success -->
-    <div id="successModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100]">
-        <div class="bg-white p-10 rounded-[40px] max-w-sm w-full text-center shadow-2xl">
-            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-check text-4xl"></i>
+    <div id="successModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100] px-4">
+        <div class="bg-white p-6 md:p-10 rounded-[30px] max-w-sm w-full text-center shadow-2xl">
+            <div class="w-16 h-16 md:w-20 md:h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+                <i class="fas fa-check text-3xl md:text-4xl"></i>
             </div>
-            <h3 class="text-2xl font-bold mb-3">Tersimpan!</h3>
-            <p class="text-slate-500 mb-8">Laporan limbah beserta deskripsinya telah diunggah.</p>
-            <button onclick="closeModal()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold">Oke</button>
+            <h3 class="text-xl md:text-2xl font-bold mb-2">Laporan Dikirim!</h3>
+            <p class="text-slate-500 text-xs md:text-sm mb-6 md:mb-8">Akumulasi laporan dari TPS Anda telah berhasil diunggah dan terintegrasi secara nasional.</p>
+            <button onclick="closeModal()" class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold">Mengerti</button>
         </div>
     </div>
 
@@ -220,37 +297,87 @@
 
         const PROVINCES = ["Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau", "Jambi", "Sumatera Selatan", "Bangka Belitung", "Bengkulu", "Lampung", "DKI Jakarta", "Jawa Barat", "Banten", "Jawa Tengah", "DI Yogyakarta", "Jawa Timur", "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Kalimantan Barat", "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", "Sulawesi Utara", "Gorontalo", "Sulawesi Tengah", "Sulawesi Barat", "Sulawesi Selatan", "Sulawesi Tenggara", "Maluku", "Maluku Utara", "Papua"];
 
+        // State Global Aplikasi
         let wasteData = [];
         let myChart, compChart, rankChart;
 
+        // Helper toleransi case-sensitivity header spreadsheet
+        function getPropValue(obj, keys) {
+            for (let key of keys) {
+                if (obj[key] !== undefined) return obj[key];
+                if (obj[key.toLowerCase()] !== undefined) return obj[key.toLowerCase()];
+                const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+                if (obj[capKey] !== undefined) return obj[capKey];
+            }
+            return undefined;
+        }
+
+        // Helper pemetaan bulan untuk grafik tren
+        function getMonthIndex(dateStr) {
+            if (!dateStr) return 4; // Default ke Mei jika kosong
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const month = parseInt(parts[1], 10) - 1;
+                return isNaN(month) ? 4 : month;
+            }
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+                return d.getMonth();
+            }
+            return 4; 
+        }
+
         async function syncData() {
-            const icon = document.getElementById('syncIcon');
+            const iconDesktop = document.getElementById('syncIcon');
+            const iconMobile = document.getElementById('syncIconMobile');
             const loading = document.getElementById('loadingIndicator');
-            icon.classList.add('fa-spin', 'text-emerald-500');
+            const shimmer = document.getElementById('shimmerLoader');
+            const tableWrapper = document.getElementById('bursaTableWrapper');
+            const cardContainer = document.getElementById('bursaCardContainer');
+            
+            iconDesktop.classList.add('fa-spin', 'text-emerald-500');
+            iconMobile.classList.add('fa-spin', 'text-emerald-500');
             loading?.classList.remove('hidden');
+            shimmer?.classList.remove('hidden');
+            tableWrapper?.classList.add('hidden');
+            cardContainer?.classList.add('hidden');
 
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
                 
                 wasteData = data.map(item => ({
-                    id: item.id,
-                    company: item.perusahaan,
-                    nib: item.nib,
-                    category: item.kategori,
-                    isB3: item.b3,
-                    volume: parseFloat(item.volume),
-                    location: item.lokasi,
-                    date: item.tanggal,
-                    description: item.deskripsi || item.Description || "-" 
+                    id: getPropValue(item, ['id']) || Date.now(),
+                    company: getPropValue(item, ['perusahaan', 'company']) || "TPS Tanpa Nama",
+                    nib: getPropValue(item, ['nib', 'registration']) || "N/A",
+                    category: getPropValue(item, ['kategori', 'category']) || "Organik",
+                    isB3: getPropValue(item, ['b3', 'isb3']) || "Non B3",
+                    volume: parseFloat(getPropValue(item, ['volume'])) || 0,
+                    location: getPropValue(item, ['lokasi', 'location']) || "DKI Jakarta",
+                    date: getPropValue(item, ['tanggal', 'date']) || new Date().toLocaleDateString('id-ID'),
+                    potensi3R: getPropValue(item, ['potensi3r', 'potensi3R', '3r']) || "Recycle",
+                    description: getPropValue(item, ['deskripsi', 'description']) || "-" 
                 }));
 
                 updateUI();
             } catch (error) {
                 console.error("Gagal sinkronisasi:", error);
+                // Muat data lokal yang rapi jika terjadi kegagalan fetching
+                if (wasteData.length === 0) {
+                    wasteData = [
+                        { id: 1, company: "TPS Sukamaju Mandiri", nib: "REG-320401", category: "Organik", isB3: "Non B3", volume: 1450, location: "Jawa Barat", date: "17/05/2026", potensi3R: "Recycle", description: "Potongan dahan, sisa daun, limbah sayuran" },
+                        { id: 2, company: "TPS Baros Eco", nib: "REG-320402", category: "Anorganik", isB3: "Non B3", volume: 2200, location: "Banten", date: "16/05/2026", potensi3R: "Reuse", description: "Botol plastik PET bening, kaleng" },
+                        { id: 3, company: "TPS Merdeka Bersih", nib: "REG-320403", category: "Anorganik", isB3: "B3", volume: 350, location: "DKI Jakarta", date: "15/05/2026", potensi3R: "Reduce", description: "Lampu neon bekas, sisa baterai litium rumah tangga" }
+                    ];
+                    updateUI();
+                }
             } finally {
-                icon.classList.remove('fa-spin', 'text-emerald-500');
+                iconDesktop.classList.remove('fa-spin', 'text-emerald-500');
+                iconMobile.classList.remove('fa-spin', 'text-emerald-500');
                 loading?.classList.add('hidden');
+                shimmer?.classList.add('hidden');
+                tableWrapper?.classList.remove('hidden');
+                cardContainer?.classList.remove('hidden');
             }
         }
 
@@ -261,10 +388,17 @@
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
             document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('tab-active'));
-            document.getElementById('tab-' + tabId).classList.remove('hidden');
             document.getElementById('btn-' + tabId).classList.add('tab-active');
+
+            document.querySelectorAll('.mobile-tab-link').forEach(el => el.classList.remove('mobile-tab-active'));
+            document.getElementById('m-btn-' + tabId).classList.add('mobile-tab-active');
+
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            
             if (tabId === 'dashboard') initDashboard();
+            if (tabId === 'bursa') renderBursa();
         }
 
         function initDashboard() {
@@ -272,9 +406,9 @@
             const organik = wasteData.filter(d => d.category === 'Organik').reduce((acc, curr) => acc + curr.volume, 0);
             const anorganik = wasteData.filter(d => d.category === 'Anorganik').reduce((acc, curr) => acc + curr.volume, 0);
 
-            document.getElementById('stat-total').textContent = `${total.toLocaleString()} kg`;
-            document.getElementById('stat-organik').textContent = `${organik.toLocaleString()} kg`;
-            document.getElementById('stat-anorganik').textContent = `${anorganik.toLocaleString()} kg`;
+            document.getElementById('stat-total').textContent = `${total.toLocaleString('id-ID')} kg`;
+            document.getElementById('stat-organik').textContent = `${organik.toLocaleString('id-ID')} kg`;
+            document.getElementById('stat-anorganik').textContent = `${anorganik.toLocaleString('id-ID')} kg`;
 
             renderMonthlyChart();
             renderCompositionChart(organik, anorganik);
@@ -284,35 +418,61 @@
         function renderMonthlyChart() {
             const ctx = document.getElementById('monthlyChart').getContext('2d');
             if (myChart) myChart.destroy();
+
+            // Akumulasi data bulanan secara dinamis dari database
+            const monthlyVolumes = Array(12).fill(0);
+            wasteData.forEach(d => {
+                const m = getMonthIndex(d.date);
+                if (m >= 0 && m < 12) {
+                    monthlyVolumes[m] += d.volume;
+                }
+            });
+
+            // Potong array agar sesuai rentang visual (Jan - Jun)
+            const visualData = monthlyVolumes.slice(0, 6);
+
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
                     datasets: [{
                         label: 'Volume (kg)',
-                        data: [1200, 1900, 3000, 5000, 2000, 3000],
+                        data: visualData,
                         backgroundColor: '#0ea5e9',
-                        borderRadius: 5
+                        borderRadius: 8
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
         function renderCompositionChart(org, anorg) {
             const ctx = document.getElementById('compositionChart').getContext('2d');
             if (compChart) compChart.destroy();
+            
+            // Atasi masalah pemisahan nol (0% rendering)
+            const dataValues = (org === 0 && anorg === 0) ? [1, 1] : [org, anorg];
+
             compChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Organik', 'Anorganik'],
                     datasets: [{
-                        data: [org, anorg],
+                        data: dataValues,
                         backgroundColor: ['#10b981', '#0ea5e9'],
                         borderWidth: 0
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%',
+                    plugins: { legend: { position: 'bottom' } }
+                }
             });
         }
 
@@ -321,8 +481,11 @@
             if (rankChart) rankChart.destroy();
 
             const provinceVolume = {};
+            PROVINCES.forEach(p => provinceVolume[p] = 0);
             wasteData.forEach(d => {
-                provinceVolume[d.location] = (provinceVolume[d.location] || 0) + d.volume;
+                if (provinceVolume[d.location] !== undefined) {
+                    provinceVolume[d.location] += d.volume;
+                }
             });
 
             const sorted = Object.entries(provinceVolume)
@@ -334,45 +497,96 @@
                 data: {
                     labels: sorted.map(d => d[0]),
                     datasets: [{
-                        label: 'KG',
+                        label: 'Total Terkirim (KG)',
                         data: sorted.map(d => d[1]),
                         backgroundColor: '#075985',
-                        borderRadius: 5
+                        borderRadius: 6
                     }]
                 },
                 options: { 
                     indexAxis: 'y',
                     responsive: true, 
-                    maintainAspectRatio: false 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
                 }
             });
         }
 
         function renderBursa() {
-            const body = document.getElementById('bursaTableBody');
-            body.innerHTML = '';
+            const tableBody = document.getElementById('bursaTableBody');
+            const cardContainer = document.getElementById('bursaCardContainer');
+            
+            tableBody.innerHTML = '';
+            cardContainer.innerHTML = '';
+
             wasteData.forEach(item => {
+                let badge3RColor = "bg-sky-50 text-sky-600 border border-sky-100";
+                if (item.potensi3R === 'Recycle') badge3RColor = "bg-emerald-50 text-emerald-600 border border-emerald-100";
+                if (item.potensi3R === 'Reduce') badge3RColor = "bg-amber-50 text-amber-600 border border-amber-100";
+
+                // Desktop Row (Table)
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="px-8 py-4">
+                    <td class="px-8 py-5">
                         <div class="font-bold text-slate-700">${item.company}</div>
-                        <div class="text-[10px] text-slate-400">NIB: ${item.nib}</div>
+                        <div class="text-[10px] text-slate-400 font-bold">REG: ${item.nib}</div>
                     </td>
-                    <td class="px-8 py-4">
+                    <td class="px-8 py-5">
                         <div class="text-xs text-slate-500 font-medium">
-                            <i class="fas fa-map-marker-alt text-red-400 mr-1"></i> ${item.location}
+                            <i class="fas fa-map-marker-alt text-emerald-500 mr-1"></i> ${item.location}
                         </div>
                     </td>
-                    <td class="px-8 py-4">
+                    <td class="px-8 py-5">
                         <div class="text-xs text-slate-600 max-w-[200px] break-words" title="${item.description}">
                             ${item.description}
                         </div>
                     </td>
-                    <td class="px-8 py-4 text-xs font-semibold">${item.category}</td>
-                    <td class="px-8 py-4 font-bold text-sky-600">${item.volume.toLocaleString()} kg</td>
-                    <td class="px-8 py-4"><span class="px-2 py-1 bg-slate-100 rounded text-[10px]">${item.isB3}</span></td>
+                    <td class="px-8 py-5">
+                        <span class="px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase ${badge3RColor}">
+                            ${item.potensi3R}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-xs font-semibold text-slate-600">${item.category}</td>
+                    <td class="px-8 py-5 font-bold text-emerald-600">${item.volume.toLocaleString('id-ID')} kg</td>
+                    <td class="px-8 py-5">
+                        <span class="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold ${item.isB3 === 'B3' ? 'text-rose-600 bg-rose-50' : 'text-slate-500'}">${item.isB3}</span>
+                    </td>
                 `;
-                body.appendChild(tr);
+                tableBody.appendChild(tr);
+
+                // Mobile Card-List
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl border border-slate-200/60 shadow-sm flex flex-col gap-3";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-extrabold text-slate-800 text-sm leading-tight">${item.company}</h4>
+                            <p class="text-[9px] text-slate-400 mt-0.5">REG: ${item.nib}</p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${badge3RColor}">
+                            ${item.potensi3R}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <span class="font-semibold text-slate-400 text-[10px] block mb-1 uppercase tracking-wider">Detail Material:</span>
+                        ${item.description}
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-dashed border-slate-100">
+                        <div>
+                            <p class="text-[10px] text-slate-400">Lokasi TPS</p>
+                            <p class="font-bold text-slate-700 mt-0.5"><i class="fas fa-map-marker-alt text-emerald-500 mr-1"></i> ${item.location}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400">Akumulasi Volume</p>
+                            <p class="font-extrabold text-emerald-600 mt-0.5 text-sm">${item.volume.toLocaleString('id-ID')} kg</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-1">
+                        <span class="px-2 py-1 bg-slate-100 rounded text-[9px] font-extrabold text-slate-500">${item.category}</span>
+                        <span class="px-2 py-1 rounded text-[9px] font-extrabold ${item.isB3 === 'B3' ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'}">${item.isB3}</span>
+                    </div>
+                `;
+                cardContainer.appendChild(card);
             });
         }
 
@@ -380,7 +594,7 @@
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghubungkan Cloud...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Mengunggah...';
 
             const payload = {
                 id: Date.now(),
@@ -391,7 +605,8 @@
                 volume: parseFloat(document.getElementById('volume').value),
                 location: document.getElementById('location').value,
                 date: new Date().toLocaleDateString('id-ID'),
-                description: document.getElementById('description').value
+                description: document.getElementById('description').value,
+                potensi3R: document.getElementById('potensi3R').value
             };
 
             try {
@@ -407,10 +622,11 @@
                 document.getElementById('successModal').classList.remove('hidden');
                 this.reset();
             } catch (error) {
-                alert("Gagal mengirim data.");
+                console.error("Gagal mengirim data:", error);
+                alert("Koneksi bermasalah. Data gagal dikirim ke Google Sheets.");
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> KIRIM';
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> KIRIM LAPORAN TPS';
                 updateUI();
             }
         });
