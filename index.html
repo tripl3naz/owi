@@ -67,7 +67,8 @@
     </nav>
 
     <!-- Header Informasi Singkat (Desktop & Mobile) -->
-    <header class="bg-gradient-owi py-8 md:py-12 mb-6 md:mb-8 text-white">
+    <!-- Memberikan padding-bottom ekstra pb-20 (mobile) dan pb-32 (desktop) agar teks slogan memiliki ruang yang sangat lega -->
+    <header class="bg-gradient-owi pt-8 pb-20 md:pt-12 md:pb-32 mb-6 md:mb-8 text-white">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
             <div>
                 <span class="bg-emerald-500/30 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Satu Indonesia</span>
@@ -87,7 +88,8 @@
         <!-- Tab 1: Dashboard -->
         <div id="tab-dashboard" class="tab-content">
             <!-- Grid Statistik Utama (Sangat Responsif) -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 -mt-16 md:-mt-20 px-2">
+            <!-- Mengubah margin negatif menjadi -mt-6 (mobile) dan -mt-16 (desktop) untuk menggeser kartu statistik ke bawah agar tidak menabrak teks slogan -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 -mt-6 md:-mt-16 px-2">
                 <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md md:shadow-xl border border-white card-hover">
                     <div class="flex items-center justify-between mb-3">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Volume Masuk</p>
@@ -529,7 +531,9 @@
                 tr.innerHTML = `
                     <td class="px-8 py-5">
                         <div class="font-bold text-slate-700">${item.company}</div>
-                        <div class="text-[10px] text-slate-400 font-bold">REG: ${item.nib}</div>
+                        <div class="text-[10px] text-slate-400 font-bold">
+                            <i class="fas fa-phone-alt text-emerald-500 mr-1"></i>Narahubung: 081234567890
+                        </div>
                     </td>
                     <td class="px-8 py-5">
                         <div class="text-xs text-slate-500 font-medium">
@@ -561,7 +565,9 @@
                     <div class="flex justify-between items-start">
                         <div>
                             <h4 class="font-extrabold text-slate-800 text-sm leading-tight">${item.company}</h4>
-                            <p class="text-[9px] text-slate-400 mt-0.5">REG: ${item.nib}</p>
+                            <p class="text-[9px] text-slate-500 mt-1 font-semibold">
+                                <i class="fas fa-phone-alt text-emerald-500 mr-1"></i>Narahubung: 081234567890
+                            </p>
                         </div>
                         <span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${badge3RColor}">
                             ${item.potensi3R}
